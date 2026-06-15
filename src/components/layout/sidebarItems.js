@@ -34,5 +34,5 @@ export const SIDEBAR_ITEMS = [
   { id: "clients",       label: "Clients",       icon: "Building2",    to: "/clients",       roles: ["admin"]            },
   { id: "employees",     label: "Employees",     icon: "Briefcase",    to: "/employees",     roles: ["admin"]            },
   { id: "billing",       label: "Billing",       icon: "Wallet",       to: "/billing",       roles: ["client"],  permission: "Billing"      },
-  { id: "settings",      label: "Settings",      icon: "Settings",     to: "/settings",      permission: "Settings"      },
+  { id: "settings",      label: "Settings",      icon: "Settings",     to: "/settings"                                   },
 ];

@@ -23,17 +23,31 @@ import {
   saveAsCustom,
 } from '../../../features/reports/reportsSlice.js';
 import { selectActiveClient } from '../../../features/clients/clientsSlice.js';
+import { dateLabel } from '../../../features/reports/data/dateRanges.js';
 import { cn } from '../../../utils/classNames.js';
 
 // ----------------------------------------------------------------------------
 // QBO filter bar field definitions
 
+// [presetKey, label] — keys MUST match DATE_PRESETS (resolvePresetRange) so the
+// selected period actually drives the from_date/to_date sent to the backend.
+// (Previously these were free-text labels whose slugified values didn't match
+// any preset, so every choice silently fell back to the fiscal-year default.)
 const REPORT_PERIODS = [
-  'Today', 'This week', 'This week-to-date', 'This month', 'This month-to-date',
-  'This quarter', 'This quarter-to-date', 'This year', 'This year-to-date',
-  'Yesterday', 'Last week', 'Last week-to-date', 'Last month',
-  'Last quarter', 'Last quarter-to-date', 'Last year', 'Last year-to-date',
-  'Custom',
+  ['custom',               'Custom'],
+  ['today',                'Today'],
+  ['yesterday',            'Yesterday'],
+  ['this-week',            'This week'],
+  ['previous-week',        'Last week'],
+  ['this-month',           'This month'],
+  ['previous-month',       'Last month'],
+  ['this-quarter',         'This quarter'],
+  ['previous-quarter',     'Last quarter'],
+  ['this-year',            'This year (Jan–Dec)'],
+  ['previous-year',        'Last year (Jan–Dec)'],
+  ['ytd',                  'Year-to-date'],
+  ['this-fiscal-year',     'This fiscal year'],
+  ['previous-fiscal-year', 'Previous fiscal year'],
 ];
 
 const DISPLAY_COLUMNS_BY = [
@@ -86,18 +100,9 @@ function FilterField({ label, children }) {
   );
 }
 
-function dateLabelFromRange(rangeId, customFrom, customTo) {
+function periodLabel(rangeId, customFrom, customTo) {
   if (rangeId === 'custom' && customFrom && customTo) return `${customFrom} → ${customTo}`;
-  const map = {
-    'this-month':       'This Month',
-    'this-quarter':     'This Quarter',
-    'this-year':        'This Year',
-    'ytd':              'Year-to-date',
-    'previous-month':   'Last Month',
-    'previous-quarter': 'Last Quarter',
-    'previous-year':    'Last Year',
-  };
-  return map[rangeId] || 'This Month';
+  return dateLabel(rangeId);
 }
 
 // ----------------------------------------------------------------------------
@@ -203,17 +208,14 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
             onChange={(e) => onSetFilter({ dateRange: e.target.value })}
             className={fieldCls}
           >
-            {REPORT_PERIODS.map((p) => {
-              const v = p.toLowerCase().replace(/\s+/g, '-');
-              return <option key={v} value={v}>{p}</option>;
-            })}
+            {REPORT_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FilterField>
         <FilterField label="From">
           <input
             type="date"
             value={filters.customFrom || ''}
-            onChange={(e) => onSetFilter({ customFrom: e.target.value })}
+            onChange={(e) => onSetFilter({ customFrom: e.target.value, dateRange: 'custom' })}
             className={fieldCls}
           />
         </FilterField>
@@ -221,7 +223,7 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
           <input
             type="date"
             value={filters.customTo || ''}
-            onChange={(e) => onSetFilter({ customTo: e.target.value })}
+            onChange={(e) => onSetFilter({ customTo: e.target.value, dateRange: 'custom' })}
             className={fieldCls}
           />
         </FilterField>
@@ -323,15 +325,12 @@ function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetC
           <div className="text-[11px] uppercase tracking-wider font-semibold text-navy-400 mb-2">General</div>
           <FilterField label="Report period">
             <select value={filters.dateRange} onChange={(e) => onSetFilter({ dateRange: e.target.value })} className={fieldCls}>
-              {REPORT_PERIODS.map((p) => {
-                const v = p.toLowerCase().replace(/\s+/g, '-');
-                return <option key={v} value={v}>{p}</option>;
-              })}
+              {REPORT_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </FilterField>
           <div className="grid grid-cols-2 gap-2 mt-2">
-            <FilterField label="From"><input type="date" value={filters.customFrom || ''} onChange={(e) => onSetFilter({ customFrom: e.target.value })} className={fieldCls} /></FilterField>
-            <FilterField label="To"><input type="date" value={filters.customTo || ''} onChange={(e) => onSetFilter({ customTo: e.target.value })} className={fieldCls} /></FilterField>
+            <FilterField label="From"><input type="date" value={filters.customFrom || ''} onChange={(e) => onSetFilter({ customFrom: e.target.value, dateRange: 'custom' })} className={fieldCls} /></FilterField>
+            <FilterField label="To"><input type="date" value={filters.customTo || ''} onChange={(e) => onSetFilter({ customTo: e.target.value, dateRange: 'custom' })} className={fieldCls} /></FilterField>
           </div>
         </section>
 
@@ -437,8 +436,8 @@ export default function QBReportViewer() {
   };
   const loading = status === 'loading';
 
-  const dateLabel = useMemo(
-    () => dateLabelFromRange(filters.dateRange, filters.customFrom, filters.customTo),
+  const periodText = useMemo(
+    () => periodLabel(filters.dateRange, filters.customFrom, filters.customTo),
     [filters.dateRange, filters.customFrom, filters.customTo],
   );
 

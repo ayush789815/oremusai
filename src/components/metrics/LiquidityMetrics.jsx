@@ -7,7 +7,7 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
 import axiosClient from '../../services/axiosClient.js';
-import MetricSection, { fmtINR, SectionSkeleton } from './MetricSection.jsx';
+import MetricSection, { fmtINR, fmtFull, SectionSkeleton } from './MetricSection.jsx';
 
 function RatioGauge({ value, label, healthy, warning = 1, color }) {
   const pct = Math.min(100, (value / (healthy * 2)) * 100);
@@ -42,9 +42,11 @@ export default function LiquidityMetrics({ from, to }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     axiosClient.get('/dashboard/liquidity', { params: { from, to } })
-      .then(r => setData(r.data.data))
-      .catch(() => setData({}));
+      .then(r => { if (!cancelled) setData(r.data.data); })
+      .catch(() => { if (!cancelled) setData({}); });
+    return () => { cancelled = true; };
   }, [from, to]);
 
   if (!data) return <SectionSkeleton />;
@@ -75,8 +77,8 @@ export default function LiquidityMetrics({ from, to }) {
           {/* Working capital */}
           <div className="rounded-xl border border-navy-100 dark:border-navy-800 p-3.5 bg-navy-50/50 dark:bg-navy-800/50">
             <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-navy-500 mb-2">Working Capital</div>
-            <div className={`text-[22px] font-bold tabular-nums ${(data.workingCapital || 0) >= 0 ? 'text-navy-900 dark:text-white' : 'text-red-500'}`}>
-              {fmtINR(data.workingCapital || 0)}
+            <div className={`text-[clamp(15px,1.6vw,21px)] font-bold tabular-nums truncate ${(data.workingCapital || 0) >= 0 ? 'text-navy-900 dark:text-white' : 'text-red-500'}`}>
+              {fmtFull(data.workingCapital || 0)}
             </div>
             <div className="text-[10.5px] text-navy-400 mt-1">current assets − liabilities</div>
           </div>
@@ -93,7 +95,7 @@ export default function LiquidityMetrics({ from, to }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={55} />
-                <Tooltip formatter={(v, n, p) => [fmtINR(v), p.payload.name]}
+                <Tooltip formatter={(v, n, p) => [fmtFull(v), p.payload.name]}
                   contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                 <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                   {balanceData.map((d, i) => (
@@ -107,10 +109,10 @@ export default function LiquidityMetrics({ from, to }) {
           {/* Summary table */}
           <div className="grid grid-cols-2 gap-2 mt-3">
             {[
-              { label: 'Current Assets',      value: fmtINR(data.currentAssets),      color: '#10B981' },
-              { label: 'Current Liabilities', value: fmtINR(data.currentLiabilities), color: '#EF4444' },
-              { label: 'Cash on Hand',        value: fmtINR(data.cash),               color: '#8B5CF6' },
-              { label: 'Total Assets',        value: fmtINR(data.totalAssets),        color: '#2563EB' },
+              { label: 'Current Assets',      value: fmtFull(data.currentAssets),      color: '#10B981' },
+              { label: 'Current Liabilities', value: fmtFull(data.currentLiabilities), color: '#EF4444' },
+              { label: 'Cash on Hand',        value: fmtFull(data.cash),               color: '#8B5CF6' },
+              { label: 'Total Assets',        value: fmtFull(data.totalAssets),        color: '#2563EB' },
             ].map(item => (
               <div key={item.label} className="rounded-lg bg-navy-50 dark:bg-navy-800 px-3 py-2">
                 <div className="text-[9.5px] uppercase tracking-widest text-navy-400">{item.label}</div>

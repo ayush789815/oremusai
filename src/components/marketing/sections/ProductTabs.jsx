@@ -79,7 +79,7 @@ export default function ProductTabs({ id = 'platform' }) {
 
           {/* Panel */}
           <div className="relative mt-8">
-            <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-brand-100/50 to-cyan-100/50 blur-2xl" />
+            <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-brand-100/50 to-cyan-100/50 blur-2xl dark:from-brand-500/15 dark:to-cyan-500/15 dark:blur-xl" />
             <div key={active} className="animate-slide-up">
               {TABS[active].id === 'ai' ? (
                 <div className="grid items-center gap-8 lg:grid-cols-2">

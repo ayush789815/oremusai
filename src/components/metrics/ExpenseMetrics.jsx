@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
 import axiosClient from '../../services/axiosClient.js';
-import MetricSection, { MiniKpi, fmtINR, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
 
 const PALETTE = ['#2563EB','#06B6D4','#8B5CF6','#10B981','#F59E0B','#EF4444','#64748B'];
 
@@ -17,15 +17,18 @@ export default function ExpenseMetrics({ from, to }) {
   const [breakdown, setBreakdown] = useState([]);
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([
       axiosClient.get('/dashboard/profitability',       { params: { from, to } }),
       axiosClient.get('/dashboard/kpi/burn',            { params: { from, to } }),
       axiosClient.get('/dashboard/expense-breakdown',   { params: { from, to } }),
     ]).then(([pRes, bRes, ebRes]) => {
+      if (cancelled) return;
       setProfData(pRes.data.data);
       setBurnData(bRes.data.data);
       setBreakdown(ebRes.data.data || []);
-    }).catch(() => { setProfData({}); setBurnData({}); });
+    }).catch(() => { if (!cancelled) { setProfData({}); setBurnData({}); } });
+    return () => { cancelled = true; };
   }, [from, to]);
 
   if (!profData || !burnData) return <SectionSkeleton />;
@@ -56,7 +59,7 @@ export default function ExpenseMetrics({ from, to }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <MiniKpi label="Total Expenses"  value={totalExp}     sub="this period"        color="#EF4444" icon={TrendingDown} />
         <MiniKpi label="Avg Monthly"     value={avgMonthly}   sub="12-month average"  color="#F59E0B" icon={BarChart2} />
-        <MiniKpi label="Top Category"    value={topCategory.account_name || '—'} sub={fmtINR(topCategory.totalAmount)} color="#8B5CF6" icon={Tag} isText />
+        <MiniKpi label="Top Category"    value={topCategory.account_name || '—'} sub={fmtFull(topCategory.totalAmount)} color="#8B5CF6" icon={Tag} isText />
         <MiniKpi label="Expense Ratio"   value={`${expenseRatio}%`} sub="expenses / revenue" color={expenseRatio < 80 ? '#06B6D4' : '#EF4444'} icon={Percent} isText />
       </div>
 
@@ -76,7 +79,7 @@ export default function ExpenseMetrics({ from, to }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} horizontal={false} />
                   <XAxis type="number" tick={AXIS_STYLE} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} />
                   <YAxis type="category" dataKey="name" tick={{ ...AXIS_STYLE, fontSize: 9 }} axisLine={false} tickLine={false} width={90} />
-                  <Tooltip formatter={(v, n, p) => [fmtINR(v), p.payload.fullName]}
+                  <Tooltip formatter={(v, n, p) => [fmtFull(v), p.payload.fullName]}
                     contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                   <Bar dataKey="value" radius={[0, 3, 3, 0]}>
                     {catData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
@@ -104,7 +107,7 @@ export default function ExpenseMetrics({ from, to }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
                 <XAxis dataKey="month" tick={AXIS_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={AXIS_STYLE} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={55} />
-                <Tooltip formatter={v => [fmtINR(v), 'Expenses']}
+                <Tooltip formatter={v => [fmtFull(v), 'Expenses']}
                   contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                 <Area dataKey="expenses" stroke="#EF4444" strokeWidth={2} fill="url(#exp-grad)" dot={false} />
               </AreaChart>

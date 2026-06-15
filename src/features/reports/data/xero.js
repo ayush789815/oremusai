@@ -1,98 +1,106 @@
-// Xero "Report Centre" catalog. Categories and report names mirror Xero's
-// real reporting home (reporting.xero.com/…/home) so the experience feels
-// native to Xero accountants.
+// Unified Xero report catalog — the curated report set only.
+// Reports flagged with a `liveType` use the backend /api/accounting/<liveType>
+// endpoint and render real data. Reports without a liveType fall back to the
+// mock generator.
 
 export const XERO_CATEGORIES = [
-  { id: 'all',          label: 'All reports',           icon: 'LayoutGrid' },
-  { id: 'analytics',    label: 'Analytics',             icon: 'BarChart3' },
-  { id: 'performance',  label: 'Financial performance', icon: 'TrendingUp' },
-  { id: 'statements',   label: 'Financial statements',  icon: 'FileText' },
-  { id: 'payrec',       label: 'Payables and receivables', icon: 'ArrowLeftRight' },
-  { id: 'projects',     label: 'Projects',              icon: 'FolderKanban' },
-  { id: 'reconcile',    label: 'Reconciliations',       icon: 'Landmark' },
-  { id: 'tax',          label: 'Taxes and balances',    icon: 'Percent' },
-  { id: 'transactions', label: 'Transactions',          icon: 'Receipt' },
+  { id: 'all',        label: 'All reports',           icon: 'LayoutGrid' },
+  { id: 'financials', label: 'Financials',            icon: 'TrendingUp' },
+  { id: 'sales',      label: 'Sales',                 icon: 'ShoppingBag' },
+  { id: 'arap',       label: 'Receivables and Payables', icon: 'ArrowLeftRight' },
+  { id: 'purchases',  label: 'Purchases and Expenses', icon: 'ShoppingCart' },
+  { id: 'inventory',  label: 'Inventory',             icon: 'Boxes' },
+  { id: 'tax',        label: 'Taxes',                 icon: 'Percent' },
+  { id: 'banking',    label: 'Banking',               icon: 'Landmark' },
+  { id: 'ledger',     label: 'Ledger and Accounts',   icon: 'BookOpen' },
+  { id: 'currency',   label: 'Currency',              icon: 'Coins' },
+  { id: 'packs',      label: 'Report Packs',          icon: 'FileStack' },
 ];
 
 export const XERO_REPORTS_BY_CAT = {
-  analytics: [
-    { name: 'Business Snapshot',           desc: 'High-level overview of key business metrics.' },
-    { name: 'Performance Dashboard',       desc: 'Interactive dashboard of KPIs and trends.' },
-    { name: 'Short-term Cash Flow',        desc: 'Projected cash flow for the next 90 days.' },
-    { name: 'Future Cash Flow',            desc: 'Projected cash position based on bills and invoices.' },
-    { name: 'Cash Flow Forecast',          desc: 'Forward-looking cash flow projection.' },
+  financials: [
+    { name: 'Profit and Loss',                    liveType: 'profitandloss', fav: true, desc: 'Income less expenses for the selected period.' },
+    { name: 'Budget Summary',                                                 desc: 'Budget totals by account.' },
+    { name: 'Budget Variance',                                                desc: 'Actuals vs budget with variance.' },
+    { name: 'Balance Sheet',                      liveType: 'balancesheet', fav: true, desc: 'Assets, liabilities, and equity at a point in time.' },
+    { name: 'Cash Flow Statement',                fav: true, desc: 'Operating, investing, and financing cash flow.' },
+    { name: 'Cash Summary',                                                   desc: 'Cash inflows and outflows broken down by account.' },
+    { name: 'Statement of Cash Flows - Indirect',                             desc: 'Indirect-method statement of cash flows.' },
+    { name: 'Foreign Currency Gains and Losses',                              desc: 'Realised and unrealised FX results for the period.' },
+    { name: 'Year-on-Year Trend',                                             desc: 'P&L compared across the last several years.' },
   ],
-  performance: [
-    { name: 'Profit and Loss',             desc: 'Income less expenses for the selected period.', fav: true },
-    { name: 'Executive Summary',           desc: 'Single-page summary of business performance.' },
-    { name: 'Budget Summary',              desc: 'Budget totals by account.' },
-    { name: 'Budget Variance',             desc: 'Actuals vs budget with variance.' },
-    { name: 'Budget Manager',              desc: 'Manage budgets across accounts and periods.' },
-    { name: 'Cash Summary',                desc: 'Cash inflows and outflows broken down by account.' },
-    { name: 'Tracking Summary',            desc: 'Performance grouped by tracking category.' },
-    { name: 'Account Summary',             desc: 'Income and expense totals by account.' },
+
+  sales: [
+    { name: 'Sales by Customer',                                              desc: 'Total sales grouped by customer.' },
+    { name: 'Sales by Product / Service Detail',                              desc: 'Line-level revenue per product or service.' },
+    { name: 'Receivable Invoice Summary',                                     desc: 'Open invoice totals per customer.' },
+    { name: 'Open Sales Orders by Customer',                                  desc: 'Unfulfilled sales orders grouped by customer.' },
+    { name: 'Open Sales Orders by Item',                                      desc: 'Unfulfilled sales orders grouped by item.' },
+    { name: 'Credit Notes',                                                   desc: 'Credit notes issued and applied.' },
+    { name: 'Recurring Invoices',                                             desc: 'Active recurring invoice schedules.' },
+    { name: 'Taxable Sales Summary',                                          desc: 'Taxable sales totals by tax rate.' },
+    { name: 'Taxable Sales Detail',                                           desc: 'Line-level taxable sales with tax applied.' },
   ],
-  statements: [
-    { name: 'Balance Sheet',               desc: 'Assets, liabilities, and equity at a point in time.', fav: true },
-    { name: 'Cash Flow Statement',         desc: 'Operating, investing, and financing cash flow.', fav: true },
-    { name: 'Statement of Cash Flows - Direct',   desc: 'Direct-method statement of cash flows.' },
-    { name: 'Statement of Cash Flows - Indirect', desc: 'Indirect-method statement of cash flows.' },
-    { name: 'Movements in Equity',         desc: 'Changes to owner equity in the period.' },
-    { name: 'Foreign Currency Gains and Losses', desc: 'Realized and unrealized FX results.' },
+
+  arap: [
+    { name: 'AR Aging Summary',                   fav: true, desc: 'Outstanding receivables by ageing bucket.' },
+    { name: 'AR Aging Detail',                                                desc: 'Line-level breakdown of overdue invoices.' },
+    { name: 'AP Aging Summary',                   fav: true, desc: 'Payables grouped by ageing bucket.' },
+    { name: 'AP Aging Detail',                                                desc: 'Line-level breakdown of unpaid bills.' },
   ],
-  payrec: [
-    { name: 'Aged Receivables Summary',    desc: 'Open invoices grouped into aging buckets.', fav: true },
-    { name: 'Aged Receivables Detail',     desc: 'Line-level breakdown of overdue invoices.' },
-    { name: 'Aged Payables Summary',       desc: 'Open bills grouped into aging buckets.', fav: true },
-    { name: 'Aged Payables Detail',        desc: 'Line-level breakdown of unpaid bills.' },
-    { name: 'Customer Invoice Activity',   desc: 'Invoices and credit notes per customer.' },
-    { name: 'Customer Invoice Detail',     desc: 'Detail of each invoice issued.' },
-    { name: 'Customer Invoice Summary',    desc: 'Total invoiced per customer.' },
-    { name: 'Customer Statement',          desc: 'Statement of account per customer.' },
-    { name: 'Receivable Invoice Summary',  desc: 'Open invoice totals per customer.' },
-    { name: 'Receivable Invoice Detail',   desc: 'Detail of open receivable invoices.' },
-    { name: 'Supplier Invoice Activity',   desc: 'Bills and credit notes per supplier.' },
-    { name: 'Supplier Invoice Detail',     desc: 'Detail of each bill received.' },
-    { name: 'Supplier Invoice Summary',    desc: 'Total billed per supplier.' },
-    { name: 'Payable Invoice Summary',     desc: 'Open bill totals per supplier.' },
-    { name: 'Payable Invoice Detail',      desc: 'Detail of open payable invoices.' },
-    { name: 'Income by Contact',           desc: 'Income recognized per contact.' },
-    { name: 'Expense by Contact',          desc: 'Expense booked per contact.' },
+
+  purchases: [
+    { name: 'Supplier Invoice Summary',                                       desc: 'Total billed per supplier (vendor).' },
+    { name: 'Purchases by Vendor',                                            desc: 'Total purchases grouped by vendor.' },
+    { name: 'Purchases by Item',                                              desc: 'Items procured with quantity and cost.' },
+    { name: 'Purchase Orders Open',                                           desc: 'Purchase orders not yet fully received.' },
+    { name: 'Expense Claims',                                                 desc: 'Employee expense claims and reimbursement status.' },
+    { name: 'Expenses by Vendor Summary',                                     desc: 'Total spend grouped by vendor.' },
+    { name: 'Expenses by Vendor Detail',                                      desc: 'Line-level expenses grouped by vendor.' },
+    { name: '1099 Contractor Balance',                                        desc: 'Amounts paid to 1099 contractors (US).' },
+    { name: '1099 Contractor Transaction Detail',                             desc: 'Line-level 1099 contractor transactions (US).' },
+    { name: 'Recurring Bills',                                                desc: 'Active recurring bill schedules.' },
+    { name: 'Vendor Contact List',                                            desc: 'All vendors with contact and balance details.' },
   ],
-  projects: [
-    { name: 'Project Summary',             desc: 'Hours, revenue, and margin per project.' },
-    { name: 'Project Details',             desc: 'Transaction-level detail per project.' },
-    { name: 'Time Summary',                desc: 'Hours summarized by project or staff.' },
-    { name: 'Detailed Time',               desc: 'Time entries with notes and rates.' },
-    { name: 'Staff Time Summary',          desc: 'Hours by staff member across projects.' },
+
+  inventory: [
+    { name: 'Inventory Item Summary',                                         desc: 'On-hand quantity and value per item.' },
+    { name: 'Inventory Valuation Detail',                                     desc: 'Line-level inventory valuation per item lot.' },
   ],
-  reconcile: [
-    { name: 'Bank Reconciliation Summary', desc: 'Reconciliation status for each bank account.', fav: true },
-    { name: 'Bank Summary',                desc: 'Opening, movement, and closing balance per bank.' },
-    { name: 'Reconciliation Reports',      desc: 'Reconciliation history across accounts.' },
-    { name: 'Statement Exceptions',        desc: 'Statement lines that did not reconcile.' },
-    { name: 'Uncoded Statement Lines',     desc: 'Bank lines awaiting categorization.' },
-  ],
+
   tax: [
-    { name: 'Sales Tax Report',            desc: 'Tax collected and paid in the period.', fav: true },
-    { name: 'Activity Statement',          desc: 'BAS/IAS activity statement workbook.' },
-    { name: 'BAS Worksheet',               desc: 'Worksheet supporting BAS lodgement.' },
-    { name: 'GST Audit Report',            desc: 'Detail of GST-applied transactions.' },
-    { name: 'GST Calculation Worksheet',   desc: 'Worksheet calculating GST owed or refunded.' },
-    { name: 'GST Reconciliation',          desc: 'GST control vs filed return reconciliation.' },
-    { name: 'VAT Return',                  desc: 'Filing-ready VAT return.' },
-    { name: 'Trial Balance',               desc: 'Debits and credits across every ledger.' },
+    { name: 'GST Returns Workbook',                                           desc: 'Consolidated GST return workbook (GSTR-1/2/3B).' },
+    { name: 'TDS Summary',                                                    desc: 'Tax deducted at source per section.' },
+    { name: 'Tax Liability',                                                  desc: 'Net tax payable for the period by tax type.' },
+    { name: 'GST Audit Report',                                               desc: 'Detail of GST-applied transactions for audit.' },
+    { name: 'GST Calculation Worksheet',                                      desc: 'Worksheet computing GST owed or refundable.' },
+    { name: 'GST Reconciliation',                                             desc: 'GST control account vs filed return reconciliation.' },
+    { name: 'VAT Return',                                                     desc: 'Filing-ready VAT return.' },
   ],
-  transactions: [
-    { name: 'Account Transactions',        desc: 'Transactions for one or more accounts.' },
-    { name: 'Detailed Account Transactions', desc: 'Transactions across selected accounts with notes.' },
-    { name: 'General Ledger',              desc: 'Every posted transaction grouped by account.' },
-    { name: 'Journal Report',              desc: 'System-generated journal entries.' },
-    { name: 'Manual Journals',             desc: 'Manually posted journal entries.' },
-    { name: 'Chart of Accounts',           desc: 'All accounts with type and balance.' },
-    { name: 'Audit Trail',                 desc: 'Who changed what and when.' },
-    { name: 'Receipts and Payments',       desc: 'Money in and money out summarized.' },
-    { name: 'Inventory Items List',        desc: 'All inventory items with code and price.' },
-    { name: 'Inventory Item Summary',      desc: 'On-hand quantity and value per item.' },
+
+  banking: [
+    { name: 'Bank Reconciliation',                                            fav: true, desc: 'Statement vs ledger reconciliation.' },
+    { name: 'Bank Book',                                                      desc: 'All bank-account ledger movements.' },
+    { name: 'Cash Book',                                                      desc: 'Cash-on-hand ledger movements.' },
+    { name: 'Daily Cash Position',                                            desc: 'Closing cash by day across accounts.' },
+  ],
+
+  ledger: [
+    { name: 'Trial Balance',                      liveType: 'trialbalance', fav: true, desc: 'Debits and credits across every ledger.' },
+    { name: 'General Ledger',                                                 desc: 'Every posted transaction grouped by account.' },
+    { name: 'Chart of Accounts',                                              desc: 'All accounts with type and balance.' },
+    { name: 'Transaction Detail by Account',                                  desc: 'Every posting line grouped under its account.' },
+  ],
+
+  currency: [
+    { name: 'Currency Revaluation',                                           desc: 'Period-end FX revaluation entries.' },
+    { name: 'Realised FX Gain or Loss',                                       desc: 'Settled FX gains and losses.' },
+    { name: 'Multi-Currency Balances',                                        desc: 'Balances by currency, then reporting unit.' },
+  ],
+
+  packs: [
+    { name: 'Management Report Pack',                                         desc: 'Bundled P&L, Balance Sheet, and cash flow for management review.' },
+    { name: 'Monthly Board Pack',                                             desc: 'Board-ready monthly performance and KPI pack.' },
+    { name: 'Investor Update Pack',                                           desc: 'Summary financials and metrics for investor updates.' },
   ],
 };

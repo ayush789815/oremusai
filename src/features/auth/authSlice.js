@@ -30,6 +30,25 @@ function clearZohoSessionFlags() {
   } catch {}
 }
 
+// Expire all readable browser cookies on logout (across the current path and
+// each parent domain) so no stale auth/session cookies linger after sign-out.
+function clearBrowserCookies() {
+  try {
+    if (typeof document === 'undefined' || !document.cookie) return;
+    const host = window.location.hostname;
+    const domains = ['', host, '.' + host];
+    document.cookie.split(';').forEach((c) => {
+      const name = c.split('=')[0].trim();
+      if (!name) return;
+      domains.forEach((d) => {
+        document.cookie =
+          `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/` +
+          (d ? `; domain=${d}` : '');
+      });
+    });
+  } catch {}
+}
+
 export const login = createAsyncThunk('auth/login', async (creds, { rejectWithValue }) => {
   try {
     const user = await loginRequest(creds);
@@ -65,6 +84,8 @@ const authSlice = createSlice({
       state.error = null;
       state.status = 'idle';
       persist(null);
+      clearZohoSessionFlags();
+      clearBrowserCookies();
     },
   },
   extraReducers: (b) => {

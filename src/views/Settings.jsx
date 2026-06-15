@@ -612,9 +612,104 @@ function ComingSoonRow({ name, description }) {
   );
 }
 
+// ── Client data-sync card (client role only) ─────────────────────────────────
+const SYNC_ENDPOINTS = {
+  zoho:       '/sync/all',
+  quickbooks: '/sync/qbo/all',
+  xero:       '/sync/xero/all',
+};
+const PROVIDER_LABELS = {
+  zoho:       'Zoho Books',
+  quickbooks: 'QuickBooks',
+  xero:       'Xero',
+};
+
+// One sync row per connected provider — each syncs independently.
+function ProviderSyncRow({ provider }) {
+  const [syncing, setSyncing] = useState(false);
+  const [msg, setMsg]         = useState('');
+
+  const endpoint = SYNC_ENDPOINTS[provider];
+  const label    = PROVIDER_LABELS[provider] || 'accounting tool';
+
+  async function handleSync() {
+    if (syncing || !endpoint) return;
+    setSyncing(true);
+    setMsg('');
+    try {
+      await axiosClient.post(endpoint);
+      setMsg('Sync started — your data will refresh in a few moments.');
+    } catch {
+      setMsg('Sync failed — please contact your admin if this keeps happening.');
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <div className="px-6 py-5 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium text-navy-800 dark:text-navy-200">
+          {label}
+        </p>
+        <p className="text-[12px] text-navy-500">
+          Fetch the most recent invoices, expenses and reports.
+        </p>
+        {msg && (
+          <p className={`mt-2 text-[12px] ${msg.includes('failed')
+            ? 'text-red-500 dark:text-red-400'
+            : 'text-emerald-600 dark:text-emerald-400'}`}>
+            {msg}
+          </p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={handleSync}
+        disabled={syncing}
+        className={`inline-flex items-center gap-1.5 h-9 px-4 rounded-lg text-white text-[12.5px] font-medium transition shrink-0 bg-brand-600 hover:bg-brand-700 ${
+          syncing ? 'opacity-60 cursor-not-allowed' : ''
+        }`}
+      >
+        {syncing
+          ? <><Loader2 size={14} className="animate-spin" /> Syncing…</>
+          : <><RefreshCw size={14} /> Sync now</>}
+      </button>
+    </div>
+  );
+}
+
+function ClientSyncCard() {
+  const zoho = useSelector(selectZoho);
+  const qbo  = useSelector(selectQBO);
+  const xero = useSelector(selectXero);
+
+  const connected = [
+    zoho.connected && 'zoho',
+    qbo.connected  && 'quickbooks',
+    xero.connected && 'xero',
+  ].filter(Boolean);
+
+  return (
+    <Section icon={Database} title="Data Sync" subtitle="Pull the latest data from your accounting tools">
+      {connected.length === 0 ? (
+        <div className="px-6 py-5">
+          <p className="text-[13px] font-medium text-navy-800 dark:text-navy-200">No integration linked</p>
+          <p className="text-[12px] text-navy-500">
+            No accounting integration is linked to your account yet — contact your admin.
+          </p>
+        </div>
+      ) : (
+        connected.map((p) => <ProviderSyncRow key={p} provider={p} />)
+      )}
+    </Section>
+  );
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 export default function Settings() {
   const { user } = useAuth();
+  const isClient = user?.role === 'client';
 
   return (
     <div className="p-6 lg:p-8 max-w-[860px] mx-auto flex flex-col gap-6">
@@ -645,42 +740,36 @@ export default function Settings() {
             Update <ChevronRight size={13} />
           </button>
         </div>
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="text-[13px] font-medium text-navy-800 dark:text-navy-200">
-              Two-factor authentication
-            </p>
-            <p className="text-[12px] text-navy-500">Add an extra layer of security</p>
-          </div>
-          <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-navy-100 dark:bg-navy-800 text-navy-400">
-            Coming soon
-          </span>
-        </div>
       </Section>
 
-      {/* ── Integrations ── */}
-      <Section
-        icon={Puzzle}
-        title="Integrations"
-        subtitle="Connect your accounting and finance tools"
-      >
-        <ZohoConnectCard />
-        <QBOConnectCard />
-        <XeroConnectCard />
+      {/* ── Data Sync (client only) ── */}
+      {isClient && <ClientSyncCard />}
 
-        <ComingSoonRow
-          name="Tally ERP"
-          description="Import vouchers and ledger entries from Tally Prime"
-        />
-        <ComingSoonRow
-          name="Razorpay"
-          description="Reconcile payments and settlements automatically"
-        />
-        <ComingSoonRow
-          name="GST Portal"
-          description="Fetch GSTR-1, GSTR-3B, and ITC data"
-        />
-      </Section>
+      {/* ── Integrations (admin only) ── */}
+      {!isClient && (
+        <Section
+          icon={Puzzle}
+          title="Integrations"
+          subtitle="Connect your accounting and finance tools"
+        >
+          <ZohoConnectCard />
+          <QBOConnectCard />
+          <XeroConnectCard />
+
+          <ComingSoonRow
+            name="Tally ERP"
+            description="Import vouchers and ledger entries from Tally Prime"
+          />
+          <ComingSoonRow
+            name="Razorpay"
+            description="Reconcile payments and settlements automatically"
+          />
+          <ComingSoonRow
+            name="GST Portal"
+            description="Fetch GSTR-1, GSTR-3B, and ITC data"
+          />
+        </Section>
+      )}
 
     </div>
   );

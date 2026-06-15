@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Clock, RefreshCw, Calendar, BarChart2 } from 'lucide-react';
 import axiosClient from '../../services/axiosClient.js';
-import MetricSection, { fmtINR, SectionSkeleton } from './MetricSection.jsx';
+import MetricSection, { fmtFull, SectionSkeleton } from './MetricSection.jsx';
 
 function EfficiencyCard({ label, value, unit, sub, target, industry, color, icon: Icon }) {
   const numVal   = parseFloat(value) || 0;
@@ -54,9 +54,11 @@ export default function EfficiencyMetrics({ from, to }) {
   const [data, setData] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     axiosClient.get('/dashboard/efficiency', { params: { from, to } })
-      .then(r => setData(r.data.data))
-      .catch(() => setData({}));
+      .then(r => { if (!cancelled) setData(r.data.data); })
+      .catch(() => { if (!cancelled) setData({}); });
+    return () => { cancelled = true; };
   }, [from, to]);
 
   if (!data) return <SectionSkeleton />;
@@ -106,19 +108,19 @@ export default function EfficiencyMetrics({ from, to }) {
               <BarChart2 size={13} className="text-violet-500" />
             </div>
           </div>
-          <div className="text-[22px] font-bold text-navy-900 dark:text-white tabular-nums">{fmtINR(data.totalAssets)}</div>
+          <div className="text-[clamp(15px,1.6vw,21px)] font-bold text-navy-900 dark:text-white tabular-nums truncate">{fmtFull(data.totalAssets)}</div>
           <div className="mt-3 space-y-1.5">
             <div className="flex justify-between text-[10.5px]">
               <span className="text-navy-500">Receivables</span>
-              <span className="font-semibold text-emerald-600">{fmtINR(data.receivables)}</span>
+              <span className="font-semibold text-emerald-600">{fmtFull(data.receivables)}</span>
             </div>
             <div className="flex justify-between text-[10.5px]">
               <span className="text-navy-500">Payables</span>
-              <span className="font-semibold text-red-500">{fmtINR(data.payables)}</span>
+              <span className="font-semibold text-red-500">{fmtFull(data.payables)}</span>
             </div>
             <div className="flex justify-between text-[10.5px] pt-1 border-t border-navy-100 dark:border-navy-700">
               <span className="text-navy-500">Revenue</span>
-              <span className="font-semibold text-brand-600">{fmtINR(data.revenue)}</span>
+              <span className="font-semibold text-brand-600">{fmtFull(data.revenue)}</span>
             </div>
           </div>
         </div>

@@ -41,7 +41,7 @@ export default function MarketingLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-white text-navy-900 antialiased">
+    <div className="marketing-root min-h-screen bg-white text-navy-900 antialiased transition-colors">
       <JsonLd data={orgLd} />
       <JsonLd data={siteLd} />
       <MarketingNav />

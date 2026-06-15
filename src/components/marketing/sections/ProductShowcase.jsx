@@ -51,7 +51,7 @@ export default function ProductShowcase({
 
           <Reveal delay={120}>
             <div className="relative">
-              <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-brand-100/60 to-cyan-100/60 blur-2xl" />
+              <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-tr from-brand-100/60 to-cyan-100/60 blur-2xl dark:from-brand-500/15 dark:to-cyan-500/15 dark:blur-xl" />
               <div className="browser-frame">
                 <div className="border-b border-navy-100 bg-navy-50/70 px-4 py-2.5 text-xs font-medium text-navy-400">
                   Financial ratios

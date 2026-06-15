@@ -100,9 +100,15 @@ export default function ZohoReportViewer() {
           <div className="bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-800 rounded-2xl shadow-card p-5 sm:p-8 lg:p-10 relative max-w-[1400px] mx-auto">
             <div className="mb-4 text-center">
               <div className="text-[16px] font-bold text-navy-900 dark:text-white">{client?.name || 'Oremus'}</div>
-              <div className="text-[14px] font-semibold text-navy-800 dark:text-navy-100 mt-0.5">{report.name}</div>
-              <div className="text-[11.5px] text-navy-500 mt-0.5">Basis: {basisLabel}</div>
-              <div className="text-[11.5px] text-navy-500">From {prettyDate(range.from_date)} To {prettyDate(range.to_date)}</div>
+              <div className="text-[14px] font-semibold text-navy-800 dark:text-navy-100 mt-0.5">{data?.meta?.title || report.name}</div>
+              {data?.meta?.asOf ? (
+                <div className="text-[11.5px] text-navy-500 mt-0.5">As of {data.meta.asOf}</div>
+              ) : (
+                <>
+                  <div className="text-[11.5px] text-navy-500 mt-0.5">Basis: {basisLabel}</div>
+                  <div className="text-[11.5px] text-navy-500">From {prettyDate(range.from_date)} To {prettyDate(range.to_date)}</div>
+                </>
+              )}
               <div className="text-[11px] text-navy-400 mt-0.5">Amount in {data?.currency || 'USD'}</div>
             </div>
 

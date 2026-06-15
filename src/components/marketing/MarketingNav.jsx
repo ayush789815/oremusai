@@ -2,13 +2,36 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X, ArrowRight, Sun, Moon } from 'lucide-react';
 import Logo from '@/components/ui/Logo.jsx';
 import { NAV_LINKS, COMPANY } from './data.js';
+
+const THEME_KEY = 'oremus_theme_v1';
 
 export default function MarketingNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  // The marketing route group is SSR with no Redux Provider, so theme is
+  // managed locally here: read the persisted value (shared with the app's ui
+  // slice key) on mount, apply the `dark` class, and toggle/persist on click.
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    let stored;
+    try { stored = localStorage.getItem(THEME_KEY); } catch {}
+    const dark = stored === 'dark';
+    setIsDark(dark);
+    document.documentElement.classList.toggle('dark', dark);
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      document.documentElement.classList.toggle('dark', next);
+      try { localStorage.setItem(THEME_KEY, next ? 'dark' : 'light'); } catch {}
+      return next;
+    });
+  };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -50,6 +73,14 @@ export default function MarketingNav() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-navy-600 transition-colors hover:bg-navy-50 hover:text-navy-900"
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {isDark ? <Sun size={17} /> : <Moon size={17} />}
+          </button>
           <Link
             href="/login"
             className="rounded-lg px-3.5 py-2 text-sm font-semibold text-navy-700 transition-colors hover:text-navy-900"
@@ -93,6 +124,14 @@ export default function MarketingNav() {
               ))}
             </div>
             <div className="mt-3 flex flex-col gap-2 border-t border-navy-100 pt-4">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-navy-200 px-4 py-2.5 text-center text-sm font-semibold text-navy-800 hover:bg-navy-50"
+              >
+                {isDark ? <Sun size={16} /> : <Moon size={16} />}
+                {isDark ? 'Light mode' : 'Dark mode'}
+              </button>
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}

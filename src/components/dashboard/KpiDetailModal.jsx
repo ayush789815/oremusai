@@ -7,11 +7,19 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line,
 } from 'recharts';
 import axiosClient from '../../services/axiosClient.js';
-import { fmtMoneyCompact } from '../../utils/fmt.js';
+import { fmt, fmtMoneyCompact } from '../../utils/fmt.js';
 
 const AXIS = { fontSize: 10, fill: '#94a3b8', fillOpacity: 1 };
 
+// Full grouped value (e.g. ₹32,90,000) for displayed amounts, totals & tooltips.
 function fmtINR(n) {
+  if (n == null || isNaN(n)) return fmt(0);
+  return fmt(n);
+}
+
+// Compact value (₹/k/L/Cr) used only on the narrow chart Y-axis ticks so the
+// axis stays readable; full values would overflow.
+function fmtAxis(n) {
   if (n == null || isNaN(n)) return fmtMoneyCompact(0);
   return fmtMoneyCompact(n);
 }
@@ -62,7 +70,7 @@ function RevenueDetail({ from, to }) {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
               <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={50} />
+              <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtAxis(v)} width={50} />
               <Tooltip formatter={v => [fmtINR(v), 'Revenue']}
                 contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
               <Area dataKey="revenue" stroke="#2563EB" strokeWidth={2} fill="url(#revGrad)" dot={false} />
@@ -157,7 +165,7 @@ function CashDetail() {
               <BarChart data={data.trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
                 <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
-                <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={50} />
+                <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtAxis(v)} width={50} />
                 <Tooltip formatter={(v, n) => [fmtINR(v), n === 'inflow' ? 'Inflow' : 'Outflow']}
                   contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                 <Bar dataKey="inflow" fill="#10B981" radius={[2, 2, 0, 0]} />
@@ -212,7 +220,7 @@ function BurnDetail() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
                 <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
-                <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={50} />
+                <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={v => fmtAxis(v)} width={50} />
                 <Tooltip formatter={v => [fmtINR(v), 'Expenses']}
                   contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                 <Area dataKey="expenses" stroke="#EF4444" strokeWidth={2} fill="url(#burnGrad)" dot={false} />

@@ -1,14 +1,15 @@
 'use client';
 
 import Tile from './Tile.jsx';
-import { fmtMoneyCompact } from '../../utils/fmt.js';
+import CountUpValue from './CountUpValue.jsx';
+import { fmt } from '../../utils/fmt.js';
 
 function fmtAmt(n) {
-  if (n == null || isNaN(n)) return fmtMoneyCompact(0);
-  return fmtMoneyCompact(n);
+  if (n == null || isNaN(n)) return fmt(0);
+  return fmt(n);
 }
 
-export default function TopListTile({ title, rows = [], accent = '#2563EB', loading = false }) {
+export default function TopListTile({ title, rows = [], accent = '#2563EB', loading = false, onViewAll }) {
   const max = Math.max(...rows.map((r) => r.amount), 1);
   return (
     <Tile padding="p-4" className="h-full">
@@ -22,17 +23,17 @@ export default function TopListTile({ title, rows = [], accent = '#2563EB', load
             </svg>
           )}
         </div>
-        <button className="text-[10.5px] font-semibold text-brand-600 hover:underline">All →</button>
+        <button onClick={onViewAll} className="text-[10.5px] font-semibold text-brand-600 hover:underline">All →</button>
       </div>
 
       {/* Skeleton rows while loading */}
       {loading && rows.length === 0 ? (
         <ul className="space-y-2">
           {[...Array(4)].map((_, i) => (
-            <li key={i} className="flex items-center gap-2 animate-pulse">
-              <span className="w-5 h-3 rounded bg-navy-100 dark:bg-navy-800" />
-              <span className="flex-1 h-3 rounded bg-navy-100 dark:bg-navy-800" />
-              <span className="w-14 h-3 rounded bg-navy-100 dark:bg-navy-800" />
+            <li key={i} className="flex items-center gap-2">
+              <span className="w-5 h-3 rounded skeleton" />
+              <span className="flex-1 h-3 rounded skeleton" />
+              <span className="w-14 h-3 rounded skeleton" />
             </li>
           ))}
         </ul>
@@ -51,7 +52,7 @@ export default function TopListTile({ title, rows = [], accent = '#2563EB', load
                   </span>
                   <div className="text-right shrink-0">
                     <div className="text-[12px] font-bold tabular-nums text-navy-900 dark:text-white">
-                      {fmtAmt(r.amount)}
+                      <CountUpValue value={fmtAmt(r.amount)} />
                     </div>
                     <div className={`text-[10px] font-semibold tabular-nums ${up ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                       {up ? '▲' : '▼'} {Math.abs(r.trend).toFixed(1)}%

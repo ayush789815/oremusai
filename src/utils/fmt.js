@@ -74,3 +74,9 @@ export function fmtCompact(n) {
 export function currencySymbol(code) {
   return meta(code).symbol;
 }
+
+// Locale used for digit grouping (en-IN = lakh/crore commas for INR). Used by
+// the count-up animation so in-progress values stay comma-grouped.
+export function currencyLocale(code) {
+  return meta(code).locale;
+}

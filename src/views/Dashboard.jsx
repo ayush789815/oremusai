@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
+import lazyWithRetry from '../utils/lazyWithRetry.js';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  Download, RefreshCw, Calendar, ChevronDown, Check, TrendingUp, Sparkles,
+  Download, Calendar, ChevronDown, Check, TrendingUp, Sparkles,
 } from 'lucide-react';
 import axiosClient from '../services/axiosClient.js';
 import Badge from '../components/ui/Badge.jsx';
@@ -15,30 +16,40 @@ import KpiTile from '../components/dashboard/KpiTile.jsx';
 import KpiDetailModal from '../components/dashboard/KpiDetailModal.jsx';
 import CashFlowTile from '../components/dashboard/CashFlowTile.jsx';
 import ExpenseMixTile from '../components/dashboard/ExpenseMixTile.jsx';
+import ExpenseMixModal from '../components/dashboard/ExpenseMixModal.jsx';
 import TopListTile from '../components/dashboard/TopListTile.jsx';
 import ComplianceTile from '../components/dashboard/ComplianceTile.jsx';
 import AiInsightsTile from '../components/dashboard/AiInsightsTile.jsx';
+import AskOremusModal from '../components/dashboard/AskOremusModal.jsx';
+import TopListModal from '../components/dashboard/TopListModal.jsx';
 import ActivityTile from '../components/dashboard/ActivityTile.jsx';
+import ActivityLogModal from '../components/dashboard/ActivityLogModal.jsx';
 import QuickStatTile from '../components/dashboard/QuickStatTile.jsx';
 import PeriodPill from '../components/dashboard/PeriodPill.jsx';
-import RevenueMetrics from '../components/metrics/RevenueMetrics.jsx';
-import ProfitabilityMetrics from '../components/metrics/ProfitabilityMetrics.jsx';
-import CashFlowMetrics from '../components/metrics/CashFlowMetrics.jsx';
-import ExpenseMetrics from '../components/metrics/ExpenseMetrics.jsx';
-import LiquidityMetrics from '../components/metrics/LiquidityMetrics.jsx';
-import EfficiencyMetrics from '../components/metrics/EfficiencyMetrics.jsx';
+import DashboardSkeleton from '../components/dashboard/DashboardSkeleton.jsx';
+import { SectionSkeleton } from '../components/metrics/MetricSection.jsx';
+
+// Heavy recharts-backed metric sections — code-split + lazy-loaded below the
+// fold so the initial dashboard paint stays light (shimmer fallback while they
+// stream in).
+const RevenueMetrics       = lazyWithRetry(() => import('../components/metrics/RevenueMetrics.jsx'));
+const ProfitabilityMetrics = lazyWithRetry(() => import('../components/metrics/ProfitabilityMetrics.jsx'));
+const CashFlowMetrics      = lazyWithRetry(() => import('../components/metrics/CashFlowMetrics.jsx'));
+const ExpenseMetrics       = lazyWithRetry(() => import('../components/metrics/ExpenseMetrics.jsx'));
+const LiquidityMetrics     = lazyWithRetry(() => import('../components/metrics/LiquidityMetrics.jsx'));
+const EfficiencyMetrics    = lazyWithRetry(() => import('../components/metrics/EfficiencyMetrics.jsx'));
 import { loadDashboard } from '../features/dashboard/dashboardSlice.js';
 import { selectActiveClient } from '../features/clients/clientsSlice.js';
 import { selectUser } from '../features/auth/authSlice.js';
 import {
   PERIODS,
   selectPeriodLabel, selectDateRange,
-  selectPeriod, selectCustomRange,
-  setPeriod, setCustomRange,
+  selectPeriod, selectCustomRange, selectBasis, selectCustomer, selectCurrency,
+  setPeriod, setCustomRange, setBasis, setCustomer,
 } from '../features/filters/filtersSlice.js';
 import { selectZohoConnected } from '../features/zoho/zohoSlice.js';
 import { cn } from '../utils/classNames.js';
-import { setActiveCurrency, fmtMoneyCompact } from '../utils/fmt.js';
+import { setActiveCurrency, fmt } from '../utils/fmt.js';
 
 // ── Custom range picker ───────────────────────────────────────────────────────
 function CustomRangePicker({ onClose }) {
@@ -94,8 +105,8 @@ function PeriodSelector() {
   return (
     <div ref={ref} className="relative flex items-center">
       {/* Quick pills */}
-      <div className="flex items-center bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl overflow-hidden">
-        <div className="flex items-center p-1 gap-0.5">
+      <div className="flex items-center h-9 bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl overflow-hidden shadow-soft">
+        <div className="flex items-center px-1 gap-0.5">
           {QUICK.map(p => (
             <PeriodPill key={p.id} active={period === p.id}
               onClick={() => { dispatch(setPeriod(p.id)); setOpen(false); }}>
@@ -149,21 +160,86 @@ function PeriodSelector() {
   );
 }
 
+// ── Accounting-basis toggle (Accrual ↔ Cash) ──────────────────────────────────
+function BasisToggle() {
+  const dispatch = useDispatch();
+  const basis    = useSelector(selectBasis);
+  const OPTIONS  = [
+    { id: 'accrual', label: 'Accrual' },
+    { id: 'cash',    label: 'Cash'    },
+  ];
+  return (
+    <div
+      className="flex items-center h-9 bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl overflow-hidden shadow-soft"
+      role="tablist"
+      aria-label="Accounting basis"
+    >
+      {OPTIONS.map((o) => (
+        <button
+          key={o.id}
+          role="tab"
+          aria-selected={basis === o.id}
+          onClick={() => dispatch(setBasis(o.id))}
+          className={cn(
+            'h-9 px-3 text-[12px] font-semibold transition',
+            basis === o.id
+              ? 'bg-brand-500 text-white'
+              : 'text-navy-500 hover:text-navy-800 dark:hover:text-white hover:bg-navy-50 dark:hover:bg-navy-800'
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Customer filter (scopes the /metrics/* sections to one customer) ──────────
+function CustomerFilter() {
+  const dispatch = useDispatch();
+  const customer = useSelector(selectCustomer);
+  const [list, setList] = useState([]);
+
+  useEffect(() => {
+    axiosClient.get('/customers', { params: { limit: 200 } })
+      .then(r => setList(r.data?.data || []))
+      .catch(() => setList([]));
+  }, []);
+
+  if (list.length === 0) return null; // no customer list → hide control
+
+  return (
+    <select
+      value={customer}
+      onChange={(e) => dispatch(setCustomer(e.target.value))}
+      aria-label="Customer"
+      className="h-9 px-3 text-[12px] font-semibold bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl shadow-soft text-navy-700 dark:text-navy-200 max-w-[180px] truncate"
+    >
+      <option value="">All customers</option>
+      {list.map((c) => (
+        <option key={c.zoho_contact_id || c.id} value={c.zoho_contact_id || ''}>
+          {c.company_name || c.contact_name || 'Unnamed'}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 // ── fmt helper ────────────────────────────────────────────────────────────────
 function fmtAmt(v) {
   if (v == null) return '--';
-  return fmtMoneyCompact(v);
+  return fmt(v);
 }
 
 // ── Section tab bar ───────────────────────────────────────────────────────────
 const SECTIONS = [
-  { id: 'overview',       label: 'Overview'      },
-  { id: 'revenue',        label: '01 Revenue'    },
-  { id: 'profitability',  label: '02 Profit'     },
-  { id: 'cashflow',       label: '03 Cash Flow'  },
-  { id: 'expenses',       label: '04 Expenses'   },
-  { id: 'liquidity',      label: '05 Liquidity'  },
-  { id: 'efficiency',     label: '06 Efficiency' },
+  { id: 'overview',       label: 'Overview'     },
+  { id: 'revenue',        label: 'Revenue'      },
+  { id: 'profitability',  label: 'Profit'       },
+  { id: 'cashflow',       label: 'Cash Flow'    },
+  { id: 'expenses',       label: 'Expenses'     },
+  { id: 'liquidity',      label: 'Liquidity'    },
+  { id: 'efficiency',     label: 'Efficiency'   },
 ];
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -177,36 +253,40 @@ export default function Dashboard() {
   const dateRange     = useSelector(selectDateRange);
   const period        = useSelector(selectPeriod);
   const customRange   = useSelector(selectCustomRange);
+  const basis         = useSelector(selectBasis);
+  const customer      = useSelector(selectCustomer);
+  const currency      = useSelector(selectCurrency);
 
   const [activeSection, setActiveSection] = useState('overview');
   const [kpiModal, setKpiModal]           = useState(null); // kpi id or null
-  const [syncing, setSyncing]             = useState(false);
-  const [syncMsg, setSyncMsg]             = useState('');
+  const [expenseModal, setExpenseModal]   = useState(false);
+  const [askOpen, setAskOpen]             = useState(false);
+  const [topModal, setTopModal]           = useState(null); // 'customers' | 'vendors' | null
+  const [logOpen, setLogOpen]             = useState(false);
+  const [lastSyncedAt, setLastSyncedAt]   = useState(null);
 
   const sectionRefs = useRef({});
 
   useEffect(() => {
-    dispatch(loadDashboard({ clientId: client?.id, from: dateRange.from, to: dateRange.to }));
+    dispatch(loadDashboard({ clientId: client?.id, from: dateRange.from, to: dateRange.to, basis }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, client?.id, period, customRange.from, customRange.to]);
+  }, [dispatch, client?.id, period, customRange.from, customRange.to, basis]);
 
-  const handleSync = useCallback(async () => {
-    if (syncing) return;
-    setSyncing(true);
-    setSyncMsg('');
-    try {
-      await axiosClient.post('/sync/all');
-      setSyncMsg('Sync started — data will refresh in a moment');
-      setTimeout(() => {
-        dispatch(loadDashboard({ clientId: client?.id, from: dateRange.from, to: dateRange.to }));
-        setSyncMsg('');
-      }, 8000);
-    } catch {
-      setSyncMsg('Sync failed — check your Zoho connection in Settings');
-    } finally {
-      setSyncing(false);
-    }
-  }, [syncing, dispatch, client?.id, dateRange.from, dateRange.to]);
+  // Show when the connected accounting data was last synced (sync itself now
+  // lives in Settings). Refetched whenever the active client changes.
+  useEffect(() => {
+    let cancelled = false;
+    axiosClient.get('/sync/last')
+      .then((r) => { if (!cancelled) setLastSyncedAt(r.data?.lastSyncedAt || null); })
+      .catch(() => { if (!cancelled) setLastSyncedAt(null); });
+    return () => { cancelled = true; };
+  }, [client?.id]);
+
+  const lastSyncedLabel = lastSyncedAt
+    ? new Date(lastSyncedAt).toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : null;
 
   // Scroll to section when tab clicked
   const scrollTo = (id) => {
@@ -222,6 +302,8 @@ export default function Dashboard() {
   const rs        = dash.rawStats || {};
   setActiveCurrency(rs.currency || 'INR');
   const netProfit = (rs.totalRevenue || 0) - (rs.totalExpenses || 0);
+  // First-ever load (no data yet) → show shimmer skeleton instead of empty tiles.
+  const initialLoading = dash.status === 'loading' && (!dash.kpis || dash.kpis.length === 0);
   const firstName = (user?.name || 'there').split(' ')[0];
   const hour      = new Date().getHours();
   const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -245,27 +327,15 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <PeriodSelector />
-          {zohoConnected && (
-            <Button variant="secondary" icon={RefreshCw} onClick={handleSync} disabled={syncing}
-              className={syncing ? 'opacity-60 cursor-not-allowed' : ''}>
-              {syncing ? 'Syncing…' : 'Sync'}
-            </Button>
+          {lastSyncedLabel && (
+            <span className="text-[11.5px] text-navy-400 dark:text-navy-500 whitespace-nowrap">
+              Last synced: <span className="font-medium text-navy-600 dark:text-navy-300">{lastSyncedLabel}</span>
+            </span>
           )}
+          <PeriodSelector />
           <Button variant="secondary" icon={Download}>Export</Button>
         </div>
       </div>
-
-      {/* Sync banner */}
-      {syncMsg && (
-        <div className={`mb-4 px-4 py-2.5 rounded-xl text-[12px] font-medium ${
-          syncMsg.includes('failed')
-            ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20'
-            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
-        }`}>
-          {syncMsg}
-        </div>
-      )}
 
       {/* ── Search + Ask Oremus AI (left)  ·  Section nav tabs (right) ───────── */}
       {/* Stacks vertically below lg; side-by-side on large screens. */}
@@ -275,6 +345,7 @@ export default function Dashboard() {
           <GlobalSearch className="flex-1 max-w-[420px] min-w-0" />
           <button
             type="button"
+            onClick={() => setAskOpen(true)}
             className="h-9 pl-2.5 pr-3.5 rounded-xl text-white font-semibold text-[12.5px] flex items-center gap-2 shadow-soft hover:shadow-lift bg-gradient-to-r from-brand-500 to-cyan-500 hover:from-brand-600 hover:to-cyan-600 transition-all whitespace-nowrap shrink-0"
           >
             <span className="w-5 h-5 rounded-md bg-white/20 grid place-items-center shrink-0">
@@ -304,80 +375,72 @@ export default function Dashboard() {
       </div>
 
       {/* ── Overview bento grid ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-12 gap-4 mb-6">
+      {initialLoading ? <DashboardSkeleton /> : (
+      <div className="grid grid-cols-12 gap-3 mb-5">
         {/* Hero chart — 7 cols × 2 rows */}
         <div className="col-span-12 xl:col-span-7 xl:row-span-2">
           <HeroChartTile data={dash.revExp} />
         </div>
 
-        {/* KPI tiles — 5 cols, 2×2 */}
-        <div className="col-span-12 xl:col-span-5 grid grid-cols-2 gap-4">
+        {/* KPI tiles — 5 cols, 2×2 (fills the hero height, no extra space) */}
+        <div className="col-span-12 xl:col-span-5 xl:row-span-2 grid grid-cols-2 grid-rows-2 gap-3 auto-rows-fr">
           {dash.kpis.map((k) => (
             <KpiTile key={k.id} kpi={k} onClick={() => setKpiModal(k.id)} />
           ))}
         </div>
 
-        {/* Cash flow */}
-        <div className="col-span-12 md:col-span-6 xl:col-span-3">
+        {/* Row · Cash flow + Expense mix (wider donut + legend) */}
+        <div className="col-span-12 md:col-span-5 xl:col-span-4">
           <CashFlowTile data={dash.cashFlow} />
         </div>
-
-        {/* Expense mix */}
-        <div className="col-span-12 md:col-span-6 xl:col-span-2">
-          <ExpenseMixTile data={dash.expenseMix} />
+        <div className="col-span-12 md:col-span-7 xl:col-span-8">
+          <ExpenseMixTile data={dash.expenseMix} onDetails={() => setExpenseModal(true)} />
         </div>
 
-        {/* AI insights */}
-        <div className="col-span-12 xl:col-span-4 xl:row-span-2">
-          <AiInsightsTile items={dash.aiInsights} />
-        </div>
-
-        {/* Top customers */}
+        {/* Row · Top customers + Top vendors + Compliance (equal height) */}
         <div className="col-span-12 md:col-span-6 xl:col-span-4">
           <TopListTile
             title={zohoConnected ? 'Top customers · Zoho' : 'Top customers'}
             rows={dash.topCustomers} accent="#2563EB"
             loading={dash.status === 'loading'}
+            onViewAll={() => setTopModal('customers')}
           />
         </div>
-
-        {/* Top vendors */}
         <div className="col-span-12 md:col-span-6 xl:col-span-4">
           <TopListTile
             title={zohoConnected ? 'Top vendors · Zoho' : 'Top vendors'}
             rows={dash.topVendors} accent="#F59E0B"
             loading={dash.status === 'loading'}
+            onViewAll={() => setTopModal('vendors')}
           />
         </div>
-
-        {/* Compliance */}
         <div className="col-span-12 md:col-span-6 xl:col-span-4">
           <ComplianceTile items={dash.compliances} />
         </div>
 
-        {/* Activity */}
-        <div className="col-span-12 md:col-span-6 xl:col-span-4">
-          <ActivityTile items={dash.activity} />
+        {/* Row · Recent activity + Oremus AI insights */}
+        <div className="col-span-12 xl:col-span-8">
+          <ActivityTile items={dash.activity} onViewLog={() => setLogOpen(true)} />
+        </div>
+        <div className="col-span-12 xl:col-span-4">
+          <AiInsightsTile items={dash.aiInsights} onAsk={() => setAskOpen(true)} />
         </div>
 
         {/* Quick stats row */}
-        <div className="col-span-6 md:col-span-3">
+        <div className="col-span-12 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <QuickStatTile label="Invoices"
             value={rs.totalInvoices || (dash.status === 'loading' ? '…' : '0')}
             sub={rs.outstandingReceivables ? `${fmtAmt(rs.outstandingReceivables)} outstanding` : 'no outstanding'}
             accent="#06B6D4" icon="ReceiptText" />
-        </div>
-        <div className="col-span-6 md:col-span-3">
           <QuickStatTile label="Customers"
             value={rs.totalCustomers || (dash.status === 'loading' ? '…' : '0')}
             sub="this period" accent="#10B981" icon="Users" />
-        </div>
-        <div className="col-span-6 md:col-span-3">
           <QuickStatTile label="Payments In"
             value={rs.totalPayments ? fmtAmt(rs.totalPayments) : (dash.status === 'loading' ? '…' : fmtAmt(0))}
             sub="received this period" accent="#F59E0B" icon="Wallet" />
-        </div>
-        <div className="col-span-6 md:col-span-3">
+          <QuickStatTile label="Total Expenses"
+            value={rs.totalExpenses != null ? fmtAmt(rs.totalExpenses) : (dash.status === 'loading' ? '…' : fmtAmt(0))}
+            sub="this period" accent="#EF4444" icon="TrendingDown" />
           <QuickStatTile label="Net Profit"
             value={rs.totalRevenue != null ? fmtAmt(netProfit) : (dash.status === 'loading' ? '…' : fmtAmt(0))}
             sub="revenue − expenses"
@@ -385,41 +448,55 @@ export default function Dashboard() {
             icon={netProfit >= 0 ? 'TrendingUp' : 'TrendingDown'} />
         </div>
       </div>
+      )}
 
       {/* ── Section divider ──────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 mb-5">
-        <div className="flex-1 h-px bg-navy-100 dark:bg-navy-800" />
         <div className="flex items-center gap-2 text-[11px] font-bold text-navy-400 uppercase tracking-widest">
           <TrendingUp size={12} />
           Financial Metrics
         </div>
         <div className="flex-1 h-px bg-navy-100 dark:bg-navy-800" />
+        <CustomerFilter />
+        <BasisToggle />
       </div>
 
-      {/* ── Metrics sections ─────────────────────────────────────────────────── */}
+      {/* ── Metrics sections (lazy-loaded · shimmer fallback) ─────────────────── */}
       <div className="space-y-5">
         <div ref={el => sectionRefs.current['revenue'] = el} className="scroll-mt-4">
-          <RevenueMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <RevenueMetrics from={dateRange.from} to={dateRange.to} customer={customer} currency={currency} />
+          </Suspense>
         </div>
 
         <div ref={el => sectionRefs.current['profitability'] = el} className="scroll-mt-4">
-          <ProfitabilityMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <ProfitabilityMetrics from={dateRange.from} to={dateRange.to} basis={basis} customer={customer} currency={currency} />
+          </Suspense>
         </div>
 
         <div ref={el => sectionRefs.current['cashflow'] = el} className="scroll-mt-4">
-          <CashFlowMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <CashFlowMetrics from={dateRange.from} to={dateRange.to} basis={basis} customer={customer} currency={currency} />
+          </Suspense>
         </div>
 
         <div ref={el => sectionRefs.current['expenses'] = el} className="scroll-mt-4">
-          <ExpenseMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <ExpenseMetrics from={dateRange.from} to={dateRange.to} />
+          </Suspense>
         </div>
 
         <div ref={el => sectionRefs.current['liquidity'] = el} className="scroll-mt-4">
-          <LiquidityMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <LiquidityMetrics from={dateRange.from} to={dateRange.to} />
+          </Suspense>
         </div>
 
         <div ref={el => sectionRefs.current['efficiency'] = el} className="scroll-mt-4">
-          <EfficiencyMetrics from={dateRange.from} to={dateRange.to} />
+          <Suspense fallback={<SectionSkeleton />}>
+            <EfficiencyMetrics from={dateRange.from} to={dateRange.to} />
+          </Suspense>
         </div>
       </div>
 
@@ -435,6 +512,32 @@ export default function Dashboard() {
           to={dateRange.to}
           onClose={() => setKpiModal(null)}
         />
+      )}
+
+      {/* ── Expense Mix Modal ────────────────────────────────────────────────── */}
+      {expenseModal && (
+        <ExpenseMixModal data={dash.expenseMix} onClose={() => setExpenseModal(false)} />
+      )}
+
+      {/* ── Ask Oremus AI Modal ──────────────────────────────────────────────── */}
+      {askOpen && (
+        <AskOremusModal insights={dash.aiInsights} onClose={() => setAskOpen(false)} />
+      )}
+
+      {/* ── Top list Modal ───────────────────────────────────────────────────── */}
+      {topModal && (
+        <TopListModal
+          title={topModal === 'vendors' ? 'Top vendors' : 'Top customers'}
+          rows={topModal === 'vendors' ? dash.topVendors : dash.topCustomers}
+          accent={topModal === 'vendors' ? '#F59E0B' : '#2563EB'}
+          kind={topModal}
+          onClose={() => setTopModal(null)}
+        />
+      )}
+
+      {/* ── Activity Log Modal ───────────────────────────────────────────────── */}
+      {logOpen && (
+        <ActivityLogModal items={dash.activity} onClose={() => setLogOpen(false)} />
       )}
     </div>
   );

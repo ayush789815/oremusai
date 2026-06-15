@@ -4,7 +4,8 @@
  * Base wrapper for a financial metrics section (Revenue, Profitability, etc.)
  * Renders a numbered section header + children.
  */
-import { fmtMoneyCompact } from '../../utils/fmt.js';
+import { fmt, fmtMoneyCompact } from '../../utils/fmt.js';
+import CountUpValue from '../dashboard/CountUpValue.jsx';
 
 export default function MetricSection({ num, title, subtitle, badge, children }) {
   return (
@@ -12,11 +13,6 @@ export default function MetricSection({ num, title, subtitle, badge, children })
       {/* Section header */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-navy-100 dark:border-navy-800/60">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-brand-50 dark:bg-brand-500/10 grid place-items-center flex-shrink-0">
-            <span className="text-[11px] font-black text-brand-600 dark:text-brand-400">
-              {String(num).padStart(2, '0')}
-            </span>
-          </div>
           <div>
             <div className="text-[14px] font-bold text-navy-900 dark:text-white leading-tight">{title}</div>
             {subtitle && <div className="text-[11px] text-navy-400">{subtitle}</div>}
@@ -51,8 +47,8 @@ export function MiniKpi({ label, value, sub, delta, color = '#2563EB', icon: Ico
           </div>
         )}
       </div>
-      <div className="text-[20px] font-bold text-navy-900 dark:text-white leading-tight tabular-nums">
-        {isText ? value : (typeof value === 'number' ? fmtINR(value) : value)}
+      <div className="text-[clamp(14px,1.4vw,19px)] font-bold text-navy-900 dark:text-white leading-tight tabular-nums truncate">
+        <CountUpValue value={isText ? value : (typeof value === 'number' ? fmtFull(value) : value)} />
       </div>
       {(sub || delta != null) && (
         <div className="flex items-center justify-between mt-1 gap-1">
@@ -68,21 +64,28 @@ export function MiniKpi({ label, value, sub, delta, color = '#2563EB', icon: Ico
   );
 }
 
+// Compact (Cr/L/k) — used for chart axis ticks where space is tight.
 export function fmtINR(n) {
   if (n == null || isNaN(n)) return fmtMoneyCompact(0);
   return fmtMoneyCompact(n);
+}
+
+// Full grouped digits — used for card/inline values and tooltips.
+export function fmtFull(n) {
+  if (n == null || isNaN(n)) return fmt(0);
+  return fmt(n);
 }
 
 export const AXIS_STYLE = { fontSize: 10, fill: '#94a3b8', fillOpacity: 1 };
 
 export function SectionSkeleton() {
   return (
-    <div className="rounded-2xl border border-navy-200/70 dark:border-navy-800 bg-white dark:bg-navy-900 p-5 space-y-4 animate-pulse">
-      <div className="h-4 w-40 rounded bg-navy-100 dark:bg-navy-800" />
+    <div className="rounded-2xl border border-navy-200/70 dark:border-navy-800 bg-white dark:bg-navy-900 p-5 space-y-4">
+      <div className="h-4 w-40 rounded skeleton" />
       <div className="grid grid-cols-4 gap-3">
-        {[0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl bg-navy-100 dark:bg-navy-800" />)}
+        {[0, 1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl skeleton" />)}
       </div>
-      <div className="h-44 rounded-xl bg-navy-100 dark:bg-navy-800" />
+      <div className="h-44 rounded-xl skeleton" />
     </div>
   );
 }

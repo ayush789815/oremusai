@@ -3,7 +3,7 @@ import { fetchDashboard } from './dashboardAPI.js';
 
 export const loadDashboard = createAsyncThunk(
   'dashboard/load',
-  async ({ clientId, from, to } = {}) => fetchDashboard({ clientId, from, to })
+  async ({ clientId, from, to, basis } = {}) => fetchDashboard({ clientId, from, to, basis })
 );
 
 const dashboardSlice = createSlice({

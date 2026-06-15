@@ -3,11 +3,12 @@
 import * as Icons from 'lucide-react';
 import { ExternalLink } from 'lucide-react';
 import Tile from './Tile.jsx';
-import { fmtMoneyCompact } from '../../utils/fmt.js';
+import CountUpValue from './CountUpValue.jsx';
+import { fmt } from '../../utils/fmt.js';
 
 function fmtINR(n) {
-  if (n == null || isNaN(n)) return fmtMoneyCompact(0);
-  return fmtMoneyCompact(n);
+  if (n == null || isNaN(n)) return fmt(0);
+  return fmt(n);
 }
 
 export default function KpiTile({ kpi, onClick }) {
@@ -44,8 +45,8 @@ export default function KpiTile({ kpi, onClick }) {
           </div>
         </div>
       </div>
-      <div className="text-[26px] font-bold tracking-tight tabular-nums text-navy-900 dark:text-white leading-tight">
-        {displayValue}
+      <div className="text-[clamp(15px,1.5vw,22px)] font-bold tracking-tight tabular-nums text-navy-900 dark:text-white leading-tight truncate">
+        <CountUpValue value={displayValue} />
       </div>
       <div className="flex items-center justify-between mt-1">
         <div className="text-[11px] text-navy-500 truncate pr-2">{kpi.sub}</div>

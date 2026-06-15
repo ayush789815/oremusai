@@ -7,10 +7,10 @@ export default function PeriodPill({ active, onClick, children }) {
     <button
       onClick={onClick}
       className={cn(
-        'h-8 px-3 rounded-md text-[12px] font-semibold transition',
+        'h-7 px-3 rounded-lg text-[12px] font-semibold transition',
         active
-          ? 'bg-navy-900 text-white dark:bg-white dark:text-navy-900'
-          : 'text-navy-600 dark:text-navy-300 hover:text-navy-900 dark:hover:text-white'
+          ? 'bg-brand-500 text-white shadow-soft'
+          : 'text-navy-600 dark:text-navy-300 hover:text-navy-900 dark:hover:text-white hover:bg-navy-100 dark:hover:bg-navy-800'
       )}
     >
       {children}

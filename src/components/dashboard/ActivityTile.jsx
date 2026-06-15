@@ -11,12 +11,12 @@ const ICON_BG = {
   navy:   'bg-navy-100 text-navy-600 dark:bg-navy-800 dark:text-navy-300',
 };
 
-export default function ActivityTile({ items = [] }) {
+export default function ActivityTile({ items = [], onViewLog }) {
   return (
     <Tile padding="p-4" className="h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="text-[11.5px] font-bold uppercase tracking-[0.14em] text-navy-500">Recent activity</div>
-        <button className="text-[10.5px] font-semibold text-brand-600 hover:underline">View log →</button>
+        <button onClick={onViewLog} className="text-[10.5px] font-semibold text-brand-600 hover:underline">View log →</button>
       </div>
       {items.length === 0 ? (
         <div className="flex items-center justify-center py-8">

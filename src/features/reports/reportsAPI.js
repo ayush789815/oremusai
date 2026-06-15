@@ -65,6 +65,17 @@ export async function fetchReportData({ reportName, clientId, provider, filters 
     }
   }
 
+  // Xero live path — provider-agnostic accounting engine (same endpoint as QB).
+  if (liveType && provider === 'xero') {
+    try {
+      const params = buildParams(filters);
+      const { data } = await axiosClient.get(`/accounting/${liveType}`, { params });
+      if (data && Array.isArray(data.rows)) return data;
+    } catch (e) {
+      console.warn(`[reportsAPI] Xero report '${reportName}' fell back to mock: ${e?.response?.data?.error || e.message}`);
+    }
+  }
+
   // Fallback / non-Zoho / unmapped Zoho path: mock generator.
   return new Promise((resolve) => {
     setTimeout(() => {

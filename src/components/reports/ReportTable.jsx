@@ -16,6 +16,58 @@ function formatCell(value, decimals, currency) {
   return fmt(value, { dec: decimals, sign: '', currency }).replace(/^/, '');
 }
 
+// One side (Income or Expense) of a horizontal / T-format P&L. Renders the
+// section headers, leaf accounts (indented) and "Total for X" subtotals exactly
+// like Zoho, with a bold grand Total footer that balances against the other side.
+function HorizontalSide({ side, decimals, currency, includeZero }) {
+  const all = Array.isArray(side?.rows) ? side.rows : [];
+  // Match Zoho: hide zero-balance leaf accounts (keep headers & subtotals).
+  const rows = includeZero
+    ? all
+    : all.filter((r) => r.isHeader || r.isSubtotal || !(r.cells?.amount == null || r.cells?.amount === 0));
+  return (
+    <div className="flex flex-col">
+      <div className="px-4 py-2.5 text-[15px] italic font-semibold text-navy-800 dark:text-navy-100 border-b-2 border-navy-200 dark:border-navy-700">
+        {side?.title}
+      </div>
+      <table className="w-full border-collapse text-[12.5px]">
+        <tbody>
+          {rows.map((r, i) => {
+            const isHeader   = r.isHeader === true;
+            const isSubtotal = r.isSubtotal;
+            const indentPx   = Math.min((r.level || 0), 5) * 16;
+            const v = r.cells?.amount;
+            return (
+              <tr
+                key={i}
+                className={cn(
+                  isHeader   && 'font-bold text-navy-800 dark:text-navy-100',
+                  isSubtotal && 'bg-navy-50 dark:bg-navy-900/60 font-semibold',
+                  !isHeader && !isSubtotal && 'text-navy-700 dark:text-navy-300',
+                )}
+              >
+                <td className="px-4 py-1.5" style={{ paddingLeft: 16 + indentPx }}>
+                  {!isHeader && !isSubtotal ? <span className="mr-1.5 text-navy-400">•</span> : null}
+                  {r.label}
+                </td>
+                <td className="px-4 py-1.5 text-right tabular-nums">
+                  {v == null || v === '' ? '' : formatCell(v, decimals, currency)}
+                </td>
+              </tr>
+            );
+          })}
+          <tr className="border-t-2 border-navy-200 dark:border-navy-700 font-bold text-navy-900 dark:text-navy-50">
+            <td className="px-4 py-2.5 text-right">Total</td>
+            <td className="px-4 py-2.5 text-right tabular-nums">
+              {side?.total == null ? '' : formatCell(side.total, decimals, currency)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ReportTable({ data }) {
   const filters = useSelector(selectFilters);
   const [expanded, setExpanded] = useState({});
@@ -25,6 +77,25 @@ export default function ReportTable({ data }) {
   // Resolve the report's active date range so the account ledger drill scopes
   // to the same period the report was run for.
   const range = resolvePresetRange(filters.dateRange, { from: filters.customFrom, to: filters.customTo });
+
+  // Horizontal / T-format P&L (Expense column | Income column) — matches Zoho's
+  // "Horizontal Profit and Loss". Falls through to the standard table otherwise.
+  if (data.layout === 'horizontal' && data.horizontal) {
+    const currency = data.currency || 'USD';
+    const decimals = filters.decimals != null ? filters.decimals : 2;
+    return (
+      <div className="overflow-x-auto scroll-thin">
+        <div className="grid grid-cols-1 md:grid-cols-2 border border-navy-200 dark:border-navy-700 rounded-lg overflow-hidden">
+          <div className="md:border-r border-navy-200 dark:border-navy-700">
+            <HorizontalSide side={data.horizontal.expense} decimals={decimals} currency={currency} includeZero={filters.includeZero} />
+          </div>
+          <div className="border-t md:border-t-0 border-navy-200 dark:border-navy-700">
+            <HorizontalSide side={data.horizontal.income} decimals={decimals} currency={currency} includeZero={filters.includeZero} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const cols = data.columns.filter((c) => !filters.hiddenColumns[c.key]);
   const currency = data.currency || 'USD';
@@ -50,12 +121,12 @@ export default function ReportTable({ data }) {
     <div className="overflow-x-auto scroll-thin">
       <table className="w-full border-collapse text-[12.5px]">
         <thead>
-          <tr className="border-b-2 border-navy-200 dark:border-navy-700">
+          <tr>
             {cols.map((c) => (
               <th
                 key={c.key}
                 className={cn(
-                  'sticky top-0 z-10 bg-white dark:bg-navy-950 px-3 py-2 font-semibold text-navy-500 dark:text-navy-300 uppercase tracking-wider text-[10.5px]',
+                  'sticky top-0 z-10 bg-navy-50/90 dark:bg-navy-900/90 backdrop-blur-sm px-3.5 py-2.5 font-semibold text-navy-500 dark:text-navy-400 uppercase tracking-[0.12em] text-[10.5px] border-b border-navy-200 dark:border-navy-700',
                   c.align === 'right' ? 'text-right' : 'text-left',
                 )}
               >
@@ -77,7 +148,7 @@ export default function ReportTable({ data }) {
 
             const rowCls = cn(
               'transition',
-              isHeader   && 'border-t border-navy-100 dark:border-navy-800',
+              isHeader   && 'bg-navy-50/50 dark:bg-navy-900/40 border-t border-navy-100 dark:border-navy-800',
               isSubtotal && 'bg-navy-50 dark:bg-navy-900/60 font-semibold',
               isTotal    && 'bg-brand-50/60 dark:bg-brand-500/10 font-bold border-t-2 border-brand-300 dark:border-brand-500/40',
               !isHeader && !isSubtotal && !isTotal && 'hover:bg-navy-50/50 dark:hover:bg-navy-900/40',
@@ -96,7 +167,7 @@ export default function ReportTable({ data }) {
                       <td
                         key={c.key}
                         className={cn(
-                          'px-3 py-2',
+                          'px-3.5 py-2.5',
                           c.align === 'right' ? 'text-right tabular-nums' : 'text-left',
                           isHeader   && 'font-bold text-navy-800 dark:text-navy-100',
                           !isHeader && !isSubtotal && !isTotal && 'text-navy-700 dark:text-navy-300',

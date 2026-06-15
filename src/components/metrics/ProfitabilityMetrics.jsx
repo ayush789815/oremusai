@@ -3,63 +3,91 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, BarChart2, Percent } from 'lucide-react';
 import {
-  ResponsiveContainer, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Cell,
+  ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts';
 import axiosClient from '../../services/axiosClient.js';
-import MetricSection, { MiniKpi, fmtINR, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
 
-export default function ProfitabilityMetrics({ from, to }) {
-  const [data, setData] = useState(null);
+// Build floating-bar waterfall steps. Each step draws from `a` to `b`:
+// base = min(a,b) (transparent), delta = |b-a| (colored).
+function waterfall(pl) {
+  const { revenue = 0, cogs = 0, grossProfit = 0, opex = 0, operatingProfit = 0, netProfit = 0 } = pl;
+  const seg = (name, a, b, color, isTotal) => ({
+    name, base: Math.min(a, b), delta: Math.abs(b - a), color, isTotal,
+    tip: isTotal ? b : b - a, // total → level; delta → signed change
+  });
+  return [
+    seg('Revenue',   0, revenue,          '#2563EB', true),
+    seg('− COGS',    revenue, grossProfit, '#EF4444', false),
+    seg('Gross',     0, grossProfit,       '#06B6D4', true),
+    seg('− OpEx',    grossProfit, operatingProfit, '#EF4444', false),
+    seg('Operating', 0, operatingProfit,   '#8B5CF6', true),
+    seg('− Int/Tax', operatingProfit, netProfit, '#EF4444', false),
+    seg('Net',       0, netProfit,         netProfit >= 0 ? '#10B981' : '#EF4444', true),
+  ];
+}
+
+export default function ProfitabilityMetrics({ from, to, basis, customer, currency }) {
+  const [m, setM] = useState(null);       // /metrics/profitability
+  const [trend, setTrend] = useState([]);  // 12-mo trend (unchanged endpoint)
 
   useEffect(() => {
-    axiosClient.get('/dashboard/profitability', { params: { from, to } })
-      .then(r => setData(r.data.data))
-      .catch(() => setData({}));
-  }, [from, to]);
+    let cancelled = false;
+    const params = {
+      from, to,
+      ...(basis ? { basis } : {}),
+      ...(customer ? { customer_id: customer } : {}),
+      ...(currency ? { currency_id: currency } : {}),
+    };
+    Promise.all([
+      axiosClient.get('/metrics/profitability', { params }),
+      axiosClient.get('/dashboard/profitability', { params: { from, to, ...(basis ? { basis } : {}) } }),
+    ]).then(([mRes, tRes]) => {
+      if (cancelled) return;
+      setM(mRes.data?.data || {});
+      setTrend(tRes.data?.data?.trend || []);
+    }).catch(() => { if (!cancelled) { setM({}); setTrend([]); } });
+    return () => { cancelled = true; };
+  }, [from, to, basis, customer, currency]);
 
-  if (!data) return <SectionSkeleton />;
+  if (!m) return <SectionSkeleton />;
 
-  const netMargin  = data.netMargin  ?? 0;
-  const netProfit  = data.netProfit  ?? 0;
-  const expRatio   = data.expenseRatio ?? 0;
+  const gm = m.grossMargin, om = m.operatingMargin, nm = m.netMargin;
+  const netProfit = m.netProfit ?? 0;
+  const ebitdaMargin = m.ebitdaMargin;
 
   const badge = {
-    text: netMargin > 0 ? `Net margin ${netMargin}%` : 'Margin data',
-    color: netMargin > 15 ? '#10B981' : netMargin > 0 ? '#F59E0B' : '#EF4444',
+    text: nm != null ? `Net margin ${nm}%` : 'Margin data',
+    color: nm != null && nm > 15 ? '#10B981' : nm != null && nm > 0 ? '#F59E0B' : '#EF4444',
   };
 
-  // Build waterfall data for P&L
-  const waterfallData = [
-    { name: 'Revenue',   value: data.revenue,  fill: '#2563EB', cumulative: data.revenue },
-    { name: 'Expenses',  value: -(data.expenses), fill: '#EF4444', cumulative: data.revenue - data.expenses },
-    { name: 'Net Profit',value: data.netProfit, fill: netProfit >= 0 ? '#10B981' : '#EF4444', cumulative: data.netProfit, isFinal: true },
-  ];
+  const wf = waterfall(m);
 
   return (
     <MetricSection num={2} title="Profitability Metrics" subtitle="Margins at every layer of the P&L" badge={badge}>
       {/* KPI row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <MiniKpi label="Total Revenue"  value={data.revenue}   sub="this period"          color="#2563EB" icon={TrendingUp} />
-        <MiniKpi label="Total Expenses" value={data.expenses}  sub="this period"          color="#EF4444" icon={TrendingDown} />
-        <MiniKpi label="Net Profit"     value={data.netProfit} sub={`${netMargin}% margin`} color={netProfit >= 0 ? '#10B981' : '#EF4444'} icon={netProfit >= 0 ? TrendingUp : TrendingDown} />
-        <MiniKpi label="Expense Ratio"  value={`${expRatio}%`} sub="expenses / revenue"  color="#F59E0B" icon={Percent} isText />
+        <MiniKpi label="Gross Margin"     value={gm == null ? '—' : `${gm}%`} sub={fmtFull(m.grossProfit ?? 0)}     color="#2563EB" icon={Percent} isText />
+        <MiniKpi label="Operating Margin" value={om == null ? '—' : `${om}%`} sub={fmtFull(m.operatingProfit ?? 0)} color="#06B6D4" icon={Percent} isText />
+        <MiniKpi label="EBITDA"           value={m.ebitda ?? 0} sub={ebitdaMargin == null ? 'margin —' : `${ebitdaMargin}% margin`} color="#8B5CF6" icon={BarChart2} />
+        <MiniKpi label="Net Margin"       value={nm == null ? '—' : `${nm}%`} sub={fmtFull(netProfit)} color={netProfit >= 0 ? '#10B981' : '#EF4444'} icon={netProfit >= 0 ? TrendingUp : TrendingDown} isText />
       </div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Margin trend */}
+        {/* Net profit trend */}
         <div className="lg:col-span-3">
           <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">
             Net Profit Trend · 12 months
           </div>
-          <div className="h-[180px]">
+          <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.trend || []} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+              <LineChart data={trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
                 <XAxis dataKey="month" tick={AXIS_STYLE} axisLine={false} tickLine={false} />
                 <YAxis tick={AXIS_STYLE} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={55} />
-                <Tooltip formatter={(v, n) => [fmtINR(v), n === 'revenue' ? 'Revenue' : n === 'expenses' ? 'Expenses' : 'Net Profit']}
+                <Tooltip formatter={(v, n) => [fmtFull(v), n === 'revenue' ? 'Revenue' : n === 'expenses' ? 'Expenses' : 'Net Profit']}
                   contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
                 <ReferenceLine y={0} stroke="currentColor" strokeOpacity={0.2} />
                 <Line dataKey="revenue"   stroke="#2563EB" strokeWidth={2} dot={false} />
@@ -68,7 +96,6 @@ export default function ProfitabilityMetrics({ from, to }) {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          {/* Legend */}
           <div className="flex items-center gap-4 mt-1.5 justify-center">
             {[['#2563EB','Revenue'],['#EF4444','Expenses'],['#10B981','Net Profit']].map(([c,l]) => (
               <div key={l} className="flex items-center gap-1.5 text-[10px] text-navy-500">
@@ -79,33 +106,25 @@ export default function ProfitabilityMetrics({ from, to }) {
           </div>
         </div>
 
-        {/* P&L summary waterfall */}
+        {/* P&L waterfall */}
         <div className="lg:col-span-2">
           <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">
-            P&amp;L Summary
+            P&amp;L Waterfall
           </div>
-          <div className="space-y-2.5">
-            {[
-              { label: 'Revenue',   value: data.revenue,          color: '#2563EB' },
-              { label: '− Expenses',value: -(data.expenses),      color: '#EF4444' },
-              { label: 'Net Profit',value: data.netProfit,         color: netProfit >= 0 ? '#10B981' : '#EF4444', bold: true },
-            ].map((row, i) => {
-              const maxAbs = Math.max(Math.abs(data.revenue), 1);
-              const pct    = Math.min(100, (Math.abs(row.value) / maxAbs) * 100);
-              return (
-                <div key={i} className={row.bold ? 'pt-2 border-t border-navy-100 dark:border-navy-800' : ''}>
-                  <div className="flex justify-between text-[12px] mb-1">
-                    <span className={`${row.bold ? 'font-bold text-navy-900 dark:text-white' : 'text-navy-600 dark:text-navy-300'}`}>{row.label}</span>
-                    <span className="font-bold" style={{ color: row.color }}>{fmtINR(row.value)}</span>
-                  </div>
-                  {!row.bold && (
-                    <div className="h-1.5 rounded-full bg-navy-100 dark:bg-navy-700 overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: row.color }} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+          <div className="h-[200px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={wf} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="currentColor" strokeOpacity={0.07} vertical={false} />
+                <XAxis dataKey="name" tick={{ ...AXIS_STYLE, fontSize: 8 }} interval={0} axisLine={false} tickLine={false} angle={-30} textAnchor="end" height={42} />
+                <YAxis tick={AXIS_STYLE} axisLine={false} tickLine={false} tickFormatter={v => fmtINR(v)} width={55} />
+                <Tooltip formatter={(v, n, p) => [fmtFull(p?.payload?.tip), p?.payload?.name]}
+                  contentStyle={{ borderRadius: 8, border: '1px solid rgba(100,116,139,.2)', fontSize: 12 }} />
+                <Bar dataKey="base" stackId="w" fill="transparent" />
+                <Bar dataKey="delta" stackId="w" radius={[2, 2, 0, 0]}>
+                  {wf.map((s, i) => <Cell key={i} fill={s.color} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

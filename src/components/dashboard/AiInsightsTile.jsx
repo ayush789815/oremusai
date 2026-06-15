@@ -11,9 +11,9 @@ const ICON_BG = {
   blue:  'bg-brand-100 text-brand-600 dark:bg-brand-500/20 dark:text-brand-300',
 };
 
-export default function AiInsightsTile({ items = [] }) {
+export default function AiInsightsTile({ items = [], onAsk }) {
   return (
-    <Tile padding="p-4" className="row-span-2 h-full">
+    <Tile padding="p-4" className="h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-cyan-500 text-white grid place-items-center">
@@ -24,7 +24,7 @@ export default function AiInsightsTile({ items = [] }) {
             <div className="text-[10px] text-navy-500">{items.length} insights for this period</div>
           </div>
         </div>
-        <button className="text-[10.5px] font-semibold text-brand-600 hover:underline">Ask →</button>
+        <button onClick={onAsk} className="text-[10.5px] font-semibold text-brand-600 hover:underline">Ask →</button>
       </div>
       {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">

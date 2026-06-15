@@ -51,12 +51,12 @@ export default function OrgSwitcher() {
   };
 
   return (
-    <div ref={ref} className="relative hidden md:block">
+    <div ref={ref} className="relative block min-w-0">
       <button
         onClick={() => setOpen((o) => !o)}
         disabled={switching}
         className={cn(
-          'flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-xl border transition',
+          'flex items-center gap-2 h-9 pl-1.5 pr-2.5 rounded-xl border transition max-w-full min-w-0',
           open
             ? 'bg-brand-50/60 border-brand-300 dark:bg-brand-500/15 dark:border-brand-500/40'
             : 'bg-white dark:bg-navy-900 border-navy-200 dark:border-navy-700 hover:bg-navy-50 dark:hover:bg-navy-800'
@@ -65,14 +65,14 @@ export default function OrgSwitcher() {
         <span className="w-6 h-6 rounded-md bg-gradient-to-br from-brand-500 to-cyan-500 text-white grid place-items-center shrink-0">
           {switching ? <Loader2 size={13} className="animate-spin" /> : <Building2 size={13} />}
         </span>
-        <span className="text-[12.5px] font-semibold text-navy-900 dark:text-white leading-tight truncate max-w-[200px]">
+        <span className="text-[12.5px] font-semibold text-navy-900 dark:text-white leading-tight truncate max-w-[110px] sm:max-w-[150px] md:max-w-[200px]">
           {label}
         </span>
-        <ChevronDown size={13} className={cn('text-navy-400 transition-transform', open && 'rotate-180')} />
+        <ChevronDown size={13} className={cn('text-navy-400 transition-transform shrink-0', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-[300px] z-50 bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl shadow-lift overflow-hidden animate-fadein">
+        <div className="absolute left-0 top-full mt-2 w-[280px] sm:w-[300px] max-w-[calc(100vw-1.5rem)] z-50 bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 rounded-xl shadow-lift overflow-hidden animate-fadein">
           <div className="px-3 py-2 border-b border-navy-100 dark:border-navy-800">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-navy-400">
               Organizations

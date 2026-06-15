@@ -1,5 +1,5 @@
 import axiosClient from '../../services/axiosClient.js';
-import { currencySymbol } from '../../utils/fmt.js';
+import { fmt } from '../../utils/fmt.js';
 
 const PALETTE = ['#2563EB', '#06B6D4', '#8B5CF6', '#10B981', '#F59E0B', '#64748B'];
 
@@ -31,11 +31,12 @@ function emptyDashboard() {
   };
 }
 
-export async function fetchDashboard({ clientId, from, to } = {}) {
+export async function fetchDashboard({ clientId, from, to, basis } = {}) {
   try {
     const params = {};
-    if (from) params.from = from;
-    if (to)   params.to   = to;
+    if (from)  params.from  = from;
+    if (to)    params.to    = to;
+    if (basis) params.basis = basis;
 
     const [statsRes, revRes, expRes, topCustRes, topVendRes, expBreakRes, cashRes, activityRes] =
       await Promise.all([
@@ -85,7 +86,7 @@ export async function fetchDashboard({ clientId, from, to } = {}) {
     const bankCount    = stats.bankCount                || 0;
     const monthlyBurn  = Math.round(stats.monthlyBurn  || 0);
     const runwayMonths = stats.runwayMonths             ?? null;
-    const sym          = currencySymbol(stats.currency || 'INR');
+    const cur          = stats.currency || 'INR';
 
     const kpis = [
       {
@@ -109,9 +110,15 @@ export async function fetchDashboard({ clientId, from, to } = {}) {
       {
         id:     'burn',
         label:  'Burn / Runway',
-        value:  runwayMonths != null ? (runwayMonths >= 60 ? '60+ mo' : `${runwayMonths} mo`) : '—',
+        // Prefer runway in months; when it can't be computed (e.g. negative
+        // cash), fall back to the monthly burn rate so the card isn't blank.
+        value:  runwayMonths != null
+                  ? (runwayMonths >= 60 ? '60+ mo' : `${runwayMonths} mo`)
+                  : (monthlyBurn > 0 ? `${fmt(monthlyBurn, { currency: cur })}/mo` : '—'),
         isText: true,
-        sub:    monthlyBurn > 0 ? `${sym}${(monthlyBurn / 1000).toFixed(1)}k/mo burn` : 'no burn data',
+        sub:    runwayMonths != null
+                  ? (monthlyBurn > 0 ? `${fmt(monthlyBurn, { currency: cur })}/mo burn` : 'runway estimate')
+                  : (monthlyBurn > 0 ? (cashOnHand <= 0 ? 'cash deficit · no runway' : 'monthly burn rate') : 'no burn data'),
         delta:  -4.2,   // static until we have MoM burn tracking
         color:  '#EF4444',
         icon:   'TrendingDown',
