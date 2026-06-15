@@ -1,7 +1,7 @@
-import Placeholder from '@/views/Placeholder.jsx';
+import NotificationsClient from './NotificationsClient.jsx';
 
 export const metadata = { title: 'Notifications' };
 
 export default function NotificationsPage() {
-  return <Placeholder title="Notifications" icon="Bell" />;
+  return <NotificationsClient />;
 }

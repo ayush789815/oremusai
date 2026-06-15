@@ -1,11 +1,12 @@
 'use client';
 
 import { useSelector, useDispatch } from 'react-redux';
-import { Sun, Moon, Bell, Menu } from 'lucide-react';
+import { Sun, Moon, Menu } from 'lucide-react';
 import { toggleTheme, setMobileSidebar } from '../../features/ui/uiSlice.js';
 import { selectUser } from '../../features/auth/authSlice.js';
 import ProfileMenu from './ProfileMenu.jsx';
 import OrgSwitcher from './OrgSwitcher.jsx';
+import NotificationsBell from './NotificationsBell.jsx';
 
 export default function Navbar() {
   const dispatch = useDispatch();
@@ -43,13 +44,7 @@ export default function Navbar() {
         </button>
 
         {/* Notifications */}
-        <button
-          className="h-9 w-9 rounded-lg hover:bg-navy-100 dark:hover:bg-navy-800 text-navy-500 grid place-items-center relative transition"
-          aria-label="Notifications"
-        >
-          <Bell size={16} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-navy-900" />
-        </button>
+        <NotificationsBell />
 
         {/* Profile */}
         <ProfileMenu user={user} />

@@ -9,6 +9,7 @@ import qboReducer from '../features/quickbooks/quickbooksSlice.js';
 import xeroReducer from '../features/xero/xeroSlice.js';
 import reportsReducer from '../features/reports/reportsSlice.js';
 import orgsReducer from '../features/orgs/orgsSlice.js';
+import notificationsReducer from '../features/notifications/notificationsSlice.js';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     xero: xeroReducer,
     reports: reportsReducer,
     orgs: orgsReducer,
+    notifications: notificationsReducer,
   },
 });
 
