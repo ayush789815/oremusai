@@ -40,6 +40,33 @@ function buildParams(filters = {}) {
   return out;
 }
 
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Server-side export: POST the on-screen report data to the backend, which
+// returns a real .xlsx or .pdf file. Provider-agnostic — the exported file
+// matches exactly what's rendered. Throws on failure so callers can fall back.
+export async function exportReportFile({ data, reportName = 'Report', format = 'xlsx', meta = {} } = {}) {
+  if (!data) throw new Error('No report data to export');
+  const res = await axiosClient.post(
+    '/report-export',
+    { data, reportName, meta },
+    { params: { format }, responseType: 'blob' },
+  );
+  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+  const stamp = new Date().toISOString().slice(0, 10);
+  const base = String(reportName || 'Report').replace(/[\\/:*?"<>|]+/g, ' ').trim();
+  downloadBlob(res.data, `${base} ${stamp}.${ext}`);
+}
+
 export async function fetchReportData({ reportName, clientId, provider, filters } = {}) {
   const liveType = resolveLiveType(provider, reportName);
 

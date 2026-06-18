@@ -20,9 +20,9 @@ export const SIDEBAR_ITEMS = [
     icon: 'FileBarChart',
     permission: 'Reports',
     children: [
-      { id: 'reports-zoho',       label: 'Zoho Reports',       icon: 'BookOpen',         to: '/reports/zoho',       accent: '#E42527', provider: 'zoho'       },
-      { id: 'reports-quickbooks', label: 'QuickBooks Reports', icon: 'BadgeDollarSign',  to: '/reports/quickbooks', accent: '#2CA01C', provider: 'quickbooks' },
-      { id: 'reports-xero',       label: 'Xero Reports',       icon: 'Cloud',            to: '/reports/xero',       accent: '#13B5EA', provider: 'xero'       },
+      { id: 'reports-zoho',       label: 'Reports', icon: 'BookOpen',         to: '/reports',            accent: '#E42527', provider: 'zoho', end: true },
+      { id: 'reports-quickbooks', label: 'Reports', icon: 'BadgeDollarSign',  to: '/reports/quickbooks', accent: '#2CA01C', provider: 'quickbooks' },
+      { id: 'reports-xero',       label: 'Reports', icon: 'Cloud',            to: '/reports/xero',       accent: '#13B5EA', provider: 'xero'       },
     ],
   },
   { id: "customers",     label: "Customers",     icon: "Users",        to: "/customers",     permission: "Customers"     },

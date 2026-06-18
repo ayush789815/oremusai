@@ -293,7 +293,7 @@ export function QBStandardPage() {
       </div>
 
       <div className="mt-6 text-center text-[11px] text-navy-400">
-        Reports · powered by your live QuickBooks Online ledger
+        Reports · powered by your live ledger
       </div>
     </>
   );

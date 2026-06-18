@@ -22,6 +22,7 @@ import {
   selectClientsMutating,
 } from '../features/clients/clientsSlice.js';
 import AddClientModal from '../components/modals/AddClientModal.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 import { cn } from '../utils/classNames.js';
 
 // ── Integration config ────────────────────────────────────────────────────────
@@ -263,9 +264,25 @@ export default function Clients() {
 
         {/* ── Table body ── */}
         {loading && clients.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-navy-400">
-            <Loader2 size={22} className="animate-spin mr-2" />
-            <span className="text-[13px]">Loading clients…</span>
+          <div className="divide-y divide-navy-100 dark:divide-navy-800" role="status" aria-busy="true" aria-label="Loading clients">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[1fr_160px_200px_80px] items-center px-5 py-3.5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Skeleton className="w-9 h-9" rounded="rounded-xl" />
+                  <div className="min-w-0 space-y-1.5">
+                    <Skeleton className="h-3.5 w-36" />
+                    <Skeleton className="h-3 w-44" />
+                  </div>
+                </div>
+                <Skeleton className="h-3 w-24" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-5 h-5" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-3 w-8 ml-auto" />
+              </div>
+            ))}
+            <span className="sr-only">Loading clients…</span>
           </div>
         ) : clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">

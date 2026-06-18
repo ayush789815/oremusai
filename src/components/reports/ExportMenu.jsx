@@ -10,6 +10,7 @@ import { FileText, FileSpreadsheet, FileType } from 'lucide-react';
 import Popover from '../ui/Popover.jsx';
 import { selectReportData, selectOpenReport } from '../../features/reports/reportsSlice.js';
 import { exportReportCSV, exportReportXLSX, exportReportPDF } from '../../utils/exportReport.js';
+import { exportReportFile } from '../../features/reports/reportsAPI.js';
 
 function MenuItem({ icon: Icon, label, sub, onClick }) {
   return (
@@ -32,6 +33,18 @@ export default function ExportMenu({ trigger, meta }) {
   const report = useSelector(selectOpenReport);
   const name = report?.name || 'Report';
 
+  // Generate the file on the backend; fall back to the in-browser exporter if
+  // the API is unreachable so export never silently fails.
+  const serverExport = async (format) => {
+    try {
+      await exportReportFile({ data, reportName: name, format, meta: meta || {} });
+    } catch (e) {
+      console.warn(`[ExportMenu] server ${format} export failed, using local fallback:`, e?.message);
+      if (format === 'pdf') exportReportPDF(data, name, meta || {});
+      else exportReportXLSX(data, name);
+    }
+  };
+
   return (
     <Popover width={208} align="end" trigger={trigger}>
       {({ close }) => (
@@ -49,13 +62,13 @@ export default function ExportMenu({ trigger, meta }) {
             icon={FileSpreadsheet}
             label="Excel (.xlsx)"
             sub="Microsoft Excel workbook"
-            onClick={() => { exportReportXLSX(data, name); close(); }}
+            onClick={() => { serverExport('xlsx'); close(); }}
           />
           <MenuItem
             icon={FileType}
             label="PDF (.pdf)"
-            sub="Print / save as PDF"
-            onClick={() => { exportReportPDF(data, name, meta || {}); close(); }}
+            sub="Download as PDF"
+            onClick={() => { serverExport('pdf'); close(); }}
           />
         </div>
       )}

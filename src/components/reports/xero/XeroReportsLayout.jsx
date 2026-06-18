@@ -77,7 +77,7 @@ export default function XeroReportsLayout() {
         <Body />
 
         <div className="mt-8 text-center text-[11px] text-navy-400">
-          Reports · powered by your Xero ledger
+          Reports · powered by your live ledger
         </div>
       </div>
 

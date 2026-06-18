@@ -1,11 +1,12 @@
 'use client';
 
-import { Star, Eye, Download } from 'lucide-react';
+import { Star, Eye } from 'lucide-react';
 import IconBadge from '../ui/IconBadge.jsx';
 import { iconForReport } from './reportIcon.js';
 import { cn } from '../../utils/classNames.js';
+import ReportCardExportMenu from './ReportCardExportMenu.jsx';
 
-export default function ReportCard({ report, isFavorite = false, onOpen, onExport, onToggleFavorite }) {
+export default function ReportCard({ report, isFavorite = false, onOpen, onToggleFavorite }) {
   const Icon = iconForReport(report.name);
 
   return (
@@ -54,13 +55,7 @@ export default function ReportCard({ report, isFavorite = false, onOpen, onExpor
         >
           <Eye size={13} /> View
         </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onExport?.(report); }}
-          className="inline-flex items-center gap-1.5 text-[12px] font-medium text-navy-500 hover:text-navy-800 dark:hover:text-white"
-        >
-          <Download size={13} /> Export
-        </button>
+        <ReportCardExportMenu report={report} />
       </div>
     </div>
   );

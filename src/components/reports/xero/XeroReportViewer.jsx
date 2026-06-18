@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import ReportTable from '../ReportTable.jsx';
 import ReportChart from '../ReportChart.jsx';
+import ReportSkeleton from '../ReportSkeleton.jsx';
 import ExportMenu from '../ExportMenu.jsx';
 import {
   selectOpenReport, selectView, selectReportData, selectReportStatus,
@@ -477,7 +478,7 @@ export default function XeroReportViewer() {
                 </div>
 
                 {loading || !data ? (
-                  <div className="py-12 text-center text-[12.5px] text-navy-500">Loading report…</div>
+                  <ReportSkeleton />
                 ) : view === 'table' ? (
                   <ReportTable data={data} />
                 ) : (
@@ -487,7 +488,7 @@ export default function XeroReportViewer() {
                 <div className="mt-6 pt-4 border-t border-navy-100 dark:border-navy-800 text-[10.5px] text-navy-400 flex items-center justify-between">
                   <span>Generated {new Date().toLocaleString()}</span>
                   <span className="inline-flex items-center gap-1.5">
-                    <Calendar size={11} /> Xero · Draft
+                    <Calendar size={11} /> Draft
                   </span>
                 </div>
               </div>

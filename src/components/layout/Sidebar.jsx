@@ -17,10 +17,12 @@ const resolveIcon = (name) => LucideIcons[name] || LucideIcons.Circle;
 // Shim that preserves the react-router NavLink API (render-prop `isActive`
 // for both `className` and `children`) on top of next/link + usePathname.
 // Mirrors NavLink's default behavior (a parent route stays active on child
-// routes — i.e. no `end` prop).
-function NavLink({ to, onClick, title, className, children }) {
+// routes) plus the `end` prop (exact-match only).
+function NavLink({ to, end, onClick, title, className, children }) {
   const pathname = usePathname();
-  const isActive = pathname === to || (to !== '#' && pathname.startsWith(`${to}/`));
+  const isActive = end
+    ? pathname === to
+    : (pathname === to || (to !== '#' && pathname.startsWith(`${to}/`)));
   const cls = typeof className === 'function' ? className({ isActive }) : className;
   return (
     <Link href={to} onClick={onClick} title={title} className={cls}>
@@ -60,6 +62,7 @@ function SidebarLink({ item, collapsed, onNavigate }) {
   return (
     <NavLink
       to={item.to}
+      end={item.end}
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
@@ -165,6 +168,7 @@ function SidebarGroup({ item, collapsed, onNavigate }) {
               <li key={child.id}>
                 <NavLink
                   to={child.to}
+                  end={child.end}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     cn(
@@ -278,7 +282,7 @@ export default function Sidebar() {
               // child — clicking the parent navigates there with no expand step.
               const node = item.children
                 ? (item.children.length === 1
-                    ? <SidebarLink item={{ ...item, to: item.children[0].to }} collapsed={collapsed} onNavigate={closeMobile} />
+                    ? <SidebarLink item={{ ...item, to: item.children[0].to, end: item.children[0].end }} collapsed={collapsed} onNavigate={closeMobile} />
                     : <SidebarGroup item={item} collapsed={collapsed} onNavigate={closeMobile} />)
                 : <SidebarLink item={item} collapsed={collapsed} onNavigate={closeMobile} />;
               return <li key={item.id}>{node}</li>;

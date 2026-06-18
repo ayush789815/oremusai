@@ -7,6 +7,28 @@ import {
 import { fetchReportData } from './reportsAPI.js';
 import { resolvePresetRange, DEFAULT_DATE_RANGE } from './data/dateRanges.js';
 
+// Resolve the on-screen date-range preset + compare config from state into the
+// concrete filter object the backend expects. Shared by the report viewer
+// (loadReportData) and the card-level export so both fetch the same period.
+function resolveReportFilters(reportsState, filters) {
+  let resolved = filters;
+  if (!resolved) {
+    const f = reportsState.filters;
+    const range = resolvePresetRange(f.dateRange, { from: f.customFrom, to: f.customTo });
+    resolved = { ...range, basis: f.basis };
+  }
+  const c = reportsState.compare;
+  if (c && c.count > 1) {
+    resolved = {
+      ...resolved,
+      compare: c.baseOn === 'year' ? 'year' : 'period',
+      compare_count: c.count,
+      oldest_first: c.oldestFirst,
+    };
+  }
+  return resolved;
+}
+
 export const loadReportData = createAsyncThunk(
   'reports/loadData',
   async ({ reportName, clientId, provider, filters } = {}, { getState }) => {
@@ -14,24 +36,18 @@ export const loadReportData = createAsyncThunk(
     // resolve the active date-range preset from state so the Zoho-live backend
     // always receives concrete dates — and the same period whether the report
     // is first opened or re-run.
-    const state = getState().reports;
-    let resolved = filters;
-    if (!resolved) {
-      const f = state.filters;
-      const range = resolvePresetRange(f.dateRange, { from: f.customFrom, to: f.customTo });
-      resolved = { ...range, basis: f.basis };
-    }
-    // Attach multi-period comparison config so P&L / Balance Sheet / Cash Flow
-    // render side-by-side period columns exactly like Zoho's "Compare With".
-    const c = state.compare;
-    if (c && c.count > 1) {
-      resolved = {
-        ...resolved,
-        compare: c.baseOn === 'year' ? 'year' : 'period',
-        compare_count: c.count,
-        oldest_first: c.oldestFirst,
-      };
-    }
+    const resolved = resolveReportFilters(getState().reports, filters);
+    return fetchReportData({ reportName, clientId, provider, filters: resolved });
+  },
+);
+
+// Fetch a single report's data WITHOUT touching the viewer's currentData — used
+// by the Export button on report cards so a report can be exported without
+// first opening it. Returns the report payload to the caller via .unwrap().
+export const fetchReportForExport = createAsyncThunk(
+  'reports/fetchForExport',
+  async ({ reportName, clientId, provider, filters } = {}, { getState }) => {
+    const resolved = resolveReportFilters(getState().reports, filters);
     return fetchReportData({ reportName, clientId, provider, filters: resolved });
   },
 );

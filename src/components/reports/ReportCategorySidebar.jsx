@@ -40,7 +40,7 @@ export default function ReportCategorySidebar() {
                     : 'text-navy-600 dark:text-navy-300 hover:bg-navy-50 dark:hover:bg-navy-800',
                 )}
               >
-                <Icon size={15} className={cn(isActive ? 'text-brand-600 dark:text-brand-400' : 'text-navy-400')} />
+                <Icon size={18} className={cn(isActive ? 'text-brand-600 dark:text-brand-400' : 'text-navy-400')} />
                 <span className="flex-1 text-left whitespace-nowrap">{c.label}</span>
                 <span
                   className={cn(

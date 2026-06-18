@@ -7,7 +7,7 @@ import ZohoReportsLayout from '../components/reports/zoho/ZohoReportsLayout.jsx'
 import QBReportsLayout from '../components/reports/quickbooks/QBReportsLayout.jsx';
 import XeroReportsLayout from '../components/reports/xero/XeroReportsLayout.jsx';
 import { setProvider } from '../features/reports/reportsSlice.js';
-import { isValidProvider } from '../features/reports/data/providers.js';
+import { isValidProvider, DEFAULT_PROVIDER } from '../features/reports/data/providers.js';
 
 const LAYOUTS = {
   zoho:       ZohoReportsLayout,
@@ -20,21 +20,23 @@ export default function Reports() {
   const router = useRouter();
   const { provider } = useParams();
 
-  // Sync the slice provider whenever the URL segment changes.
+  // Clean `/reports` (no provider segment) defaults to Zoho; an explicit
+  // segment (`/reports/quickbooks`, `/reports/xero`) still selects that provider.
+  const effective = provider && isValidProvider(provider) ? provider : DEFAULT_PROVIDER;
+
+  // Sync the slice provider whenever the resolved provider changes.
   useEffect(() => {
-    if (provider && isValidProvider(provider)) {
-      dispatch(setProvider(provider));
-    }
-  }, [dispatch, provider]);
+    dispatch(setProvider(effective));
+  }, [dispatch, effective]);
 
-  const invalid = !provider || !isValidProvider(provider);
-
+  // An explicit but invalid segment redirects to the clean Reports URL.
+  const invalidSegment = !!provider && !isValidProvider(provider);
   useEffect(() => {
-    if (invalid) router.replace('/reports/zoho');
-  }, [invalid, router]);
+    if (invalidSegment) router.replace('/reports');
+  }, [invalidSegment, router]);
 
-  if (invalid) return null;
+  if (invalidSegment) return null;
 
-  const Layout = LAYOUTS[provider] || ZohoReportsLayout;
+  const Layout = LAYOUTS[effective] || ZohoReportsLayout;
   return <Layout />;
 }

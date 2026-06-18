@@ -608,6 +608,8 @@ const REGISTRY = {
   'Adjusting Journal Entries':             trialBalance,
   'Account Transactions':                  trialBalance,
   'Detailed Account Transactions':         trialBalance,
+  'Transaction Detail by Account':         trialBalance,
+  'Transaction List by Vendor':            expensesByVendor,
 
   // Aging
   'AR Aging Summary':                      arAging,

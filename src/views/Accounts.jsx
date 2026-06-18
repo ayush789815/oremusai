@@ -14,6 +14,7 @@ import { selectZoho } from '../features/zoho/zohoSlice.js';
 import { selectRole } from '../features/auth/authSlice.js';
 import { cn } from '../utils/classNames.js';
 import AccountLedgerModal from '../components/reports/AccountLedgerModal.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 
 // ── Colour scheme per classification ────────────────────────────────────────
 const CLASS_COLORS = {
@@ -333,8 +334,32 @@ export default function Accounts() {
 
         {/* ── Loading / error / empty / list ── */}
         {status === 'loading' && (
-          <div className="px-6 py-16 flex items-center justify-center text-navy-400 text-[13px] gap-2">
-            <Loader2 size={16} className="animate-spin" /> Loading accounts…
+          <div className="overflow-x-auto" role="status" aria-busy="true" aria-label="Loading accounts">
+            <table className="w-full text-[13px]">
+              <thead className="bg-navy-50 dark:bg-navy-900/60 text-navy-500 text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th className="text-left  px-6 py-3 font-semibold">Account</th>
+                  <th className="text-left  px-4 py-3 font-semibold">Type / Sub-type</th>
+                  <th className="text-left  px-4 py-3 font-semibold">Classification</th>
+                  <th className="text-left  px-4 py-3 font-semibold">Number</th>
+                  <th className="text-right px-4 py-3 font-semibold">Balance</th>
+                  <th className="text-right px-6 py-3 font-semibold">With sub-accts</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-navy-100 dark:divide-navy-800">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-3"><Skeleton className="h-3.5 w-40" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-3 w-32" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-3 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-3 w-16" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-3 w-20 ml-auto" /></td>
+                    <td className="px-6 py-3"><Skeleton className="h-3 w-10 ml-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <span className="sr-only">Loading accounts…</span>
           </div>
         )}
 

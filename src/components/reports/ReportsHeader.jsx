@@ -1,23 +1,19 @@
 'use client';
 
 import { useDispatch, useSelector } from 'react-redux';
-import * as Icons from 'lucide-react';
-import { Search, Sparkles, Plus, Star } from 'lucide-react';
+import { Search, Sparkles, Star } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import Badge from '../ui/Badge.jsx';
 import { cn } from '../../utils/classNames.js';
 import {
   selectQuery, selectShowFavoritesOnly,
   setQuery, setShowFavoritesOnly,
-  selectProviderMeta,
 } from '../../features/reports/reportsSlice.js';
 
 export default function ReportsHeader() {
   const dispatch = useDispatch();
   const query = useSelector(selectQuery);
   const favOnly = useSelector(selectShowFavoritesOnly);
-  const provider = useSelector(selectProviderMeta);
-  const ProviderIcon = Icons[provider.icon] || Icons.FileBarChart;
 
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
@@ -29,18 +25,11 @@ export default function ReportsHeader() {
           <Badge tone="green" dot>Live</Badge>
         </div>
         <div className="flex items-center gap-3">
-          <span
-            className="w-10 h-10 rounded-xl grid place-items-center shrink-0 text-white shadow-soft"
-            style={{ background: provider.color }}
-            aria-hidden="true"
-          >
-            <ProviderIcon size={20} />
-          </span>
           <div>
             <h1 className="text-[28px] font-bold tracking-tight text-navy-900 dark:text-white leading-none">
-              {provider.label}
+              Reports
             </h1>
-            <p className="text-[12.5px] text-navy-500 mt-1">{provider.tagline}</p>
+            <p className="text-[12.5px] text-navy-500 mt-1">Templates powered by your live ledger.</p>
           </div>
         </div>
       </div>
@@ -51,7 +40,7 @@ export default function ReportsHeader() {
           <input
             value={query}
             onChange={(e) => dispatch(setQuery(e.target.value))}
-            placeholder={`Search ${provider.short} reports…`}
+            placeholder="Search reports…"
             className="h-9 w-[260px] max-w-[60vw] pl-9 pr-3 rounded-lg bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-700 text-[12.5px] text-navy-900 dark:text-white outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-500/20"
           />
         </div>
@@ -63,7 +52,6 @@ export default function ReportsHeader() {
         >
           Favorites
         </Button>
-        <Button variant="secondary" icon={Plus}>New custom</Button>
         <Button variant="gradient" icon={Sparkles} iconSize={14}>Ask Oremus AI</Button>
       </div>
     </div>

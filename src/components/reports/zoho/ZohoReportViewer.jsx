@@ -14,6 +14,7 @@ import ReportFilterBar from '../ReportFilterBar.jsx';
 import ReportToolbar from '../ReportToolbar.jsx';
 import ReportTable from '../ReportTable.jsx';
 import ReportChart from '../ReportChart.jsx';
+import ReportSkeleton from '../ReportSkeleton.jsx';
 import ReportViewSidebar from '../ReportViewSidebar.jsx';
 import ExportMenu from '../ExportMenu.jsx';
 import {
@@ -136,7 +137,7 @@ export default function ZohoReportViewer() {
             </div>
 
             {loading || !data ? (
-              <div className="py-12 text-center text-[12.5px] text-navy-500">Loading report…</div>
+              <ReportSkeleton />
             ) : view === 'table' ? (
               <ReportTable data={data} />
             ) : (
