@@ -15,7 +15,7 @@ function resolveReportFilters(reportsState, filters) {
   if (!resolved) {
     const f = reportsState.filters;
     const range = resolvePresetRange(f.dateRange, { from: f.customFrom, to: f.customTo });
-    resolved = { ...range, basis: f.basis };
+    resolved = { ...range, basis: f.basis, interval: f.interval };
   }
   const c = reportsState.compare;
   if (c && c.count > 1) {

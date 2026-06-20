@@ -79,6 +79,6 @@ export const ZOHO_REPORTS_BY_CAT = {
 
   currency: [
     { name: 'Foreign Currency Gains and Losses',  liveType: 'foreigncurrencygainsandlosses', desc: 'Realised and unrealised FX results for the period.' },
-    { name: 'Realised FX Gain or Loss',           liveType: 'realisedfxgainorloss', desc: 'Settled FX gains and losses.' },
+    { name: 'Realized Gain or Loss',              liveType: 'realizedgainorloss', desc: 'Settled FX gains and losses.' },
   ],
 };

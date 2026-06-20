@@ -31,6 +31,10 @@ function buildParams(filters = {}) {
   if (filters?.to   || filters?.to_date)   out.to_date   = filters.to   || filters.to_date;
   if (filters?.basis || filters?.accounting_basis) out.accounting_basis = filters.basis || filters.accounting_basis;
   if (filters?.refresh) out.refresh = '1';
+  // Display columns by (interval): only send when it actually splits columns.
+  if (filters?.interval && filters.interval !== 'none' && filters.interval !== 'total') {
+    out.interval = filters.interval;
+  }
   // Multi-period comparison columns (P&L / Balance Sheet / Cash Flow).
   if (filters?.compare && filters?.compare_count > 1) {
     out.compare = filters.compare;

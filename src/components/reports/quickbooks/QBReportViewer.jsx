@@ -5,18 +5,23 @@
 //
 // Reads/writes the same slice fields the Zoho viewer does so all data flow,
 // drilldowns, exports and view-switching keep working — only the chrome
-// changes.
+// changes. The layout mirrors QBO's report builder: a controls bar
+// (period / dates / accounting method / display / compare + Customize),
+// then a clean report sheet with a Compact/icon toolbar, centered title block,
+// the QBO-styled table and an "Add note · basis | date" footer.
 
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  X, ArrowLeft, ChevronDown, Star, Sliders, Save, Mail, Printer, Download, Calendar,
+  X, ArrowLeft, ChevronDown, Star, Sliders, Save, Mail, Printer, Download,
   Play, BarChart3, PieChart, LineChart, Table as TableIcon, MoreHorizontal,
+  RefreshCw, FileText,
 } from 'lucide-react';
 import ReportTable from '../ReportTable.jsx';
 import ReportChart from '../ReportChart.jsx';
 import ReportSkeleton from '../ReportSkeleton.jsx';
 import ExportMenu from '../ExportMenu.jsx';
+import SendReportModal from '../SendReportModal.jsx';
 import {
   selectOpenReport, selectView, selectReportData, selectReportStatus,
   selectFilters, selectCompare, selectFavorites,
@@ -24,48 +29,101 @@ import {
   saveAsCustom,
 } from '../../../features/reports/reportsSlice.js';
 import { selectActiveClient } from '../../../features/clients/clientsSlice.js';
-import { dateLabel } from '../../../features/reports/data/dateRanges.js';
+import { dateLabel, resolvePresetRange } from '../../../features/reports/data/dateRanges.js';
 import { cn } from '../../../utils/classNames.js';
+
+// QuickBooks brand green used for primary actions.
+const QB_GREEN = '#2CA01C';
 
 // ----------------------------------------------------------------------------
 // QBO filter bar field definitions
 
 // [presetKey, label] — keys MUST match DATE_PRESETS (resolvePresetRange) so the
 // selected period actually drives the from_date/to_date sent to the backend.
-// (Previously these were free-text labels whose slugified values didn't match
-// any preset, so every choice silently fell back to the fiscal-year default.)
+// Full QuickBooks-Online "Report period" option set (keys map to
+// resolvePresetRange so the choice actually drives the from/to dates).
 const REPORT_PERIODS = [
-  ['custom',               'Custom'],
-  ['today',                'Today'],
-  ['yesterday',            'Yesterday'],
-  ['this-week',            'This week'],
-  ['previous-week',        'Last week'],
-  ['this-month',           'This month'],
-  ['previous-month',       'Last month'],
-  ['this-quarter',         'This quarter'],
-  ['previous-quarter',     'Last quarter'],
-  ['this-year',            'This year (Jan–Dec)'],
-  ['previous-year',        'Last year (Jan–Dec)'],
-  ['ytd',                  'Year-to-date'],
-  ['this-fiscal-year',     'This fiscal year'],
-  ['previous-fiscal-year', 'Previous fiscal year'],
+  ['all-dates',                     'All Dates'],
+  ['custom',                        'Custom'],
+  ['today',                         'Today'],
+  ['this-week',                     'This week'],
+  ['this-week-to-date',             'This week-to-date'],
+  ['this-month',                    'This month'],
+  ['this-month-to-date',            'This month-to-date'],
+  ['this-quarter',                  'This quarter'],
+  ['this-quarter-to-date',          'This quarter to date'],
+  ['this-fiscal-quarter',           'This fiscal quarter'],
+  ['this-fiscal-quarter-to-date',   'This fiscal quarter to date'],
+  ['this-year',                     'This year'],
+  ['this-year-to-date',             'This year to date'],
+  ['this-year-to-last-month',       'This year to last month'],
+  ['this-fiscal-year-full',         'This fiscal year'],
+  ['this-fiscal-year',              'This fiscal year to date'],
+  ['this-fiscal-year-to-last-month','This fiscal year to last month'],
+  ['last-6-months',                 'Last 6 months'],
+  ['yesterday',                     'Yesterday'],
+  ['last-week',                     'Last week'],
+  ['last-week-to-date',             'Last week-to-date'],
+  ['last-week-to-today',            'Last week to today'],
+  ['last-month',                    'Last month'],
+  ['last-month-to-date',            'Last month-to-date'],
+  ['last-month-to-today',           'Last month to today'],
+  ['last-quarter',                  'Last quarter'],
+  ['last-quarter-to-date',          'Last quarter to date'],
+  ['last-quarter-to-today',         'Last quarter to today'],
+  ['last-fiscal-quarter',           'Last fiscal quarter'],
+  ['last-fiscal-quarter-to-date',   'Last fiscal quarter to date'],
+  ['previous-year',                 'Last year'],
+  ['last-year-to-date',             'Last year to date'],
+  ['last-year-to-last-month',       'Last year to last month'],
+  ['previous-fiscal-year',          'Last fiscal year'],
+  ['last-fiscal-year-to-date',      'Last fiscal year to date'],
+  ['last-fiscal-year-to-last-month','Last fiscal year to last month'],
+  ['since-30-days',                 'Since 30 days ago'],
+  ['since-60-days',                 'Since 60 days ago'],
+  ['since-90-days',                 'Since 90 days ago'],
+  ['since-365-days',                'Since 365 days ago'],
+  ['next-week',                     'Next week'],
+  ['next-4-weeks',                  'Next four weeks'],
+  ['next-month',                    'Next month'],
+  ['next-quarter',                  'Next quarter'],
+  ['next-year',                     'Next year'],
 ];
+
+// Label lookup for the period text under the report title (uses the QBO labels
+// above so extended keys render correctly without touching the shared
+// DATE_PRESETS that drives the Zoho/Xero filter bar).
+const REPORT_PERIOD_LABELS = Object.fromEntries(REPORT_PERIODS);
 
 const DISPLAY_COLUMNS_BY = [
   ['total',       'Total Only'],
+  ['customers',   'Customer'],
+  ['employees',   'Employee'],
+  ['products',    'Product/Service'],
   ['days',        'Days'],
   ['weeks',       'Weeks'],
   ['months',      'Months'],
   ['quarters',    'Quarters'],
   ['years',       'Years'],
-  ['customers',   'Customers'],
-  ['vendors',     'Vendors'],
-  ['employees',   'Employees'],
-  ['customer-type', 'Customer types'],
-  ['class',       'Class'],
-  ['location',    'Location'],
-  ['payment-method', 'Payment method'],
-  ['sales-rep',   'Sales rep'],
+  ['vendors',     'Vendor'],
+];
+
+// QBO "Compare to" — grouped exactly like QuickBooks (Time Periods +
+// Calculations); "None" is the standalone default rendered before the groups.
+const COMPARE_GROUPS = [
+  ['Time Periods', [
+    ['previous-year',   'Previous year (PY)'],
+    ['previous-period', 'Previous Period (PP)'],
+    ['ytd',             'Year-to-date (YTD)'],
+    ['py-ytd',          'Previous year-to-date (PY YTD)'],
+    ['custom-period',   'Custom period (CP)'],
+  ]],
+  ['Calculations', [
+    ['pct-row',     '% of Row'],
+    ['pct-column',  '% of Column'],
+    ['pct-expense', '% of Expense'],
+    ['pct-income',  '% of Income'],
+  ]],
 ];
 
 const SHOW_ROWS = [
@@ -74,27 +132,15 @@ const SHOW_ROWS = [
   ['nonzero',  'Non-zero'],
 ];
 
-const COMPARE_OPTIONS = [
-  ['none',           'None'],
-  ['previous-period','Previous period (PP)'],
-  ['pp-change',      'PP $ change'],
-  ['pp-pct',         'PP % change'],
-  ['previous-year',  'Previous year (PY)'],
-  ['py-change',      'PY $ change'],
-  ['py-pct',         'PY % change'],
-  ['ytd',            'Year-to-date (YTD)'],
-  ['ytd-pct',        'YTD % of YTD'],
-];
-
 const fieldCls =
   'h-9 px-3 rounded-md bg-white dark:bg-navy-900 border border-navy-300 dark:border-navy-700 text-[13px] text-navy-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20';
 
 const fieldLabelCls =
-  'block text-[11px] font-semibold uppercase tracking-wider text-navy-500 dark:text-navy-400 mb-1';
+  'block text-[11px] text-navy-500 dark:text-navy-400 mb-1';
 
-function FilterField({ label, children }) {
+function FilterField({ label, children, className }) {
   return (
-    <label className="flex flex-col gap-0.5">
+    <label className={cn('flex flex-col gap-0.5', className)}>
       <span className={fieldLabelCls}>{label}</span>
       {children}
     </label>
@@ -103,107 +149,157 @@ function FilterField({ label, children }) {
 
 function periodLabel(rangeId, customFrom, customTo) {
   if (rangeId === 'custom' && customFrom && customTo) return `${customFrom} → ${customTo}`;
-  return dateLabel(rangeId);
+  return REPORT_PERIOD_LABELS[rangeId] || dateLabel(rangeId);
+}
+
+// Point-in-time reports QuickBooks titles "As of <date>" (the to-date), rather
+// than a date-range label like "This year to date".
+const AS_OF_REPORTS = new Set([
+  'Balance Sheet', 'Balance Sheet Summary', 'Balance Sheet Detail',
+  'Balance Sheet Comparison', 'Horizontal Balance Sheet',
+  'AR Aging Summary', 'A/R Aging Summary', 'Aged Receivables Summary',
+  'AR Aging Detail', 'A/R Aging Detail', 'Aged Receivables Detail',
+  'AP Aging Summary', 'A/P Aging Summary', 'Aged Payables Summary',
+  'AP Aging Detail', 'A/P Aging Detail', 'Aged Payables Detail',
+  '1099 Contractor Balance', '1099 Contractor Balance Summary',
+]);
+
+// Reports QuickBooks titles as "Since <Month D, YYYY>" from the period's
+// from-date (e.g. "1099 Transaction Detail Report" with "Since 365 Days Ago").
+const SINCE_REPORTS = new Set([
+  '1099 Transaction Detail', '1099 Transaction Detail Report',
+]);
+
+// Contact / list reports have no period at all — QuickBooks shows only the
+// company + report name (no third date line).
+const NO_PERIOD_REPORTS = new Set([
+  'Vendor Contact List', 'Customer Contact List', 'Employee Contact List',
+]);
+
+function sinceLabel(fromDate) {
+  if (!fromDate) return '';
+  const [y, m, d] = String(fromDate).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return `Since ${new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+}
+
+// "As of <Month D, YYYY>" from a YYYY-MM-DD string, parsed by local components
+// to dodge the IST toISOString day-shift gotcha.
+function asOfLabel(toDate) {
+  if (!toDate) return '';
+  const [y, m, d] = String(toDate).split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return `As of ${new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+}
+
+// Period reports QuickBooks titles with the spelled-out date range, e.g.
+// "January 1-June 19, 2026" (Statement of Cash Flows).
+const RANGE_TITLE_REPORTS = new Set([
+  'Cash Flow Statement', 'Statement of Cash Flows',
+  'Statement of Cash Flows - Direct', 'Statement of Cash Flows - Indirect',
+  'Cash Summary',
+  'Sales by Customer', 'Sales by Customer Summary', 'Sales by Customer Detail',
+  'Income by Customer Summary',
+  'Sales by Product / Service Detail', 'Sales by Product/Service Detail',
+  'Sales by Product / Service Summary',
+  'Expenses by Vendor Summary', 'Expenses by Vendor', 'Expenses by Vendor Detail',
+  'Transaction Detail by Account',
+  'General Ledger',
+]);
+
+function parseYmd(s) {
+  if (!s) return null;
+  const [y, m, d] = String(s).split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+
+function rangeTitle(from, to) {
+  const a = parseYmd(from);
+  const b = parseYmd(to);
+  if (!a || !b) return '';
+  const full = { year: 'numeric', month: 'long', day: 'numeric' };
+  if (a.getFullYear() === b.getFullYear()) {
+    const start = a.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    return `${start}-${b.toLocaleDateString('en-US', full)}`;
+  }
+  return `${a.toLocaleDateString('en-US', full)} - ${b.toLocaleDateString('en-US', full)}`;
+}
+
+// Translate a "Compare to" choice into a compare patch. Picking a comparison
+// period turns ON multi-period columns (count >= 2) and selects the right basis
+// (year vs period) so the extra column actually renders after Run report;
+// "None" collapses back to a single column.
+function compareSelection(value, currentCount) {
+  if (value === 'none') return { with: value, count: 1 };
+  return {
+    with: value,
+    baseOn: value.includes('year') ? 'year' : 'period',
+    count: currentCount > 1 ? currentCount : 2,
+  };
+}
+
+// Renders the QBO "Compare to" options: a standalone "None" then the grouped
+// Time Periods / Calculations optgroups. Shared by the controls bar + sidebar.
+function CompareOptions() {
+  return (
+    <>
+      <option value="none">None</option>
+      {COMPARE_GROUPS.map(([group, opts]) => (
+        <optgroup key={group} label={group}>
+          {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </optgroup>
+      ))}
+    </>
+  );
 }
 
 // ----------------------------------------------------------------------------
-// QBO-style top toolbar (breadcrumb · title · Customize · row of icon actions)
+// Slim top bar — back / breadcrumb / title + favorite / close
 
-function QBToolbar({ report, onCustomize, onClose, favorited, onToggleFavorite, onSaveCustom, savedToast }) {
+function QBTopBar({ report, favorited, onToggleFavorite, onClose }) {
   return (
-    <header className="border-b border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950">
-      <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+    <header className="border-b border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
         <button
           type="button"
           onClick={onClose}
           className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-emerald-700 dark:text-emerald-300 hover:underline shrink-0"
         >
-          <ArrowLeft size={14} /> Back to reports
+          <ArrowLeft size={14} /> Back to standard reports
         </button>
-        <div className="hidden md:flex items-center gap-1 text-[11.5px] text-navy-500 capitalize">
-          <span>Standard reports</span>
-          <span>›</span>
-          <span>{report.category.replace(/-/g, ' ')}</span>
-          <span>›</span>
-          <span className="text-navy-700 dark:text-navy-200 font-semibold">{report.name}</span>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="h-9 w-9 grid place-items-center rounded-md border border-navy-200 dark:border-navy-700 text-navy-500 hover:bg-navy-50 dark:hover:bg-navy-800"
-        >
-          <X size={15} />
-        </button>
-      </div>
-
-      <div className="px-4 sm:px-6 pb-4 flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <h2 className="text-[24px] font-bold tracking-tight text-navy-900 dark:text-white truncate">
-            {report.name}
-          </h2>
+        <span className="hidden md:inline text-navy-300">·</span>
+        <h2 className="hidden md:flex items-center gap-2 text-[14px] font-bold text-navy-900 dark:text-white truncate">
+          {report.name}
           <button
             type="button"
             onClick={onToggleFavorite}
-            className={cn(
-              'h-8 w-8 grid place-items-center rounded-md transition',
-              favorited ? 'text-amber-500' : 'text-navy-300 hover:text-amber-500',
-            )}
+            className={cn('grid place-items-center transition', favorited ? 'text-amber-500' : 'text-navy-300 hover:text-amber-500')}
             aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
           >
-            <Star size={16} fill={favorited ? 'currentColor' : 'none'} />
+            <Star size={14} fill={favorited ? 'currentColor' : 'none'} />
           </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onCustomize}
-            className="h-9 px-3 rounded-md border border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10 inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
-          >
-            <Sliders size={14} /> Customize
-          </button>
-          <button
-            type="button"
-            onClick={onSaveCustom}
-            className="h-9 px-3 rounded-md border border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold relative"
-          >
-            <Save size={14} /> Save customization
-            {savedToast && (
-              <span className="absolute -bottom-7 right-0 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5 shadow-soft whitespace-nowrap">
-                Saved · find it in Custom reports
-              </span>
-            )}
-          </button>
-          <button type="button" className="h-9 px-3 rounded-md border border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold">
-            <Mail size={14} /> Email
-          </button>
-          <button type="button" className="h-9 px-3 rounded-md border border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold">
-            <Printer size={14} /> Print
-          </button>
-          <ExportMenu trigger={(
-            <button type="button" className="h-9 px-3 rounded-md border border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold">
-              <Download size={14} /> Export
-              <ChevronDown size={12} />
-            </button>
-          )} />
-          <button type="button" className="h-9 w-9 grid place-items-center rounded-md border border-navy-200 dark:border-navy-700 text-navy-500 hover:bg-navy-50 dark:hover:bg-navy-800">
-            <MoreHorizontal size={15} />
-          </button>
-        </div>
+        </h2>
       </div>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="h-8 w-8 grid place-items-center rounded-md border border-navy-200 dark:border-navy-700 text-navy-500 hover:bg-navy-50 dark:hover:bg-navy-800 shrink-0"
+      >
+        <X size={15} />
+      </button>
     </header>
   );
 }
 
 // ----------------------------------------------------------------------------
-// QBO-style filter bar (sticky, green Run report button)
+// QBO-style controls bar (period · dates · method · display · compare · actions)
 
-function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
+function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onCustomize, onSaveCustom, savedToast, onRefresh, onEmail, exportMeta }) {
   return (
-    <div className="border-b border-navy-200 dark:border-navy-800 bg-navy-50/60 dark:bg-navy-900/40 px-4 sm:px-6 py-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <FilterField label="Report period">
+    <div className="border-b border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-3">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
+        <FilterField label="Report period" className="w-[160px]">
           <select
             value={filters.dateRange}
             onChange={(e) => onSetFilter({ dateRange: e.target.value })}
@@ -212,7 +308,7 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
             {REPORT_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FilterField>
-        <FilterField label="From">
+        <FilterField label="From" className="w-[140px]">
           <input
             type="date"
             value={filters.customFrom || ''}
@@ -220,7 +316,7 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
             className={fieldCls}
           />
         </FilterField>
-        <FilterField label="To">
+        <FilterField label="To" className="w-[140px]">
           <input
             type="date"
             value={filters.customTo || ''}
@@ -228,7 +324,31 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
             className={fieldCls}
           />
         </FilterField>
-        <FilterField label="Display columns by">
+
+        <FilterField label="Accounting method">
+          <div className="inline-flex h-9 rounded-md border border-navy-300 dark:border-navy-700 overflow-hidden">
+            {[['cash', 'Cash'], ['accrual', 'Accrual']].map(([v, l]) => {
+              const active = (filters.basis || 'accrual') === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onSetFilter({ basis: v })}
+                  className={cn(
+                    'px-4 text-[13px] font-semibold transition',
+                    active
+                      ? 'bg-navy-800 text-white dark:bg-white dark:text-navy-900'
+                      : 'bg-white dark:bg-navy-900 text-navy-600 dark:text-navy-300 hover:bg-navy-50 dark:hover:bg-navy-800',
+                  )}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+        </FilterField>
+
+        <FilterField label="Display columns by" className="w-[150px]">
           <select
             value={filters.interval}
             onChange={(e) => onSetFilter({ interval: e.target.value })}
@@ -237,65 +357,52 @@ function QBFilterBar({ filters, compare, onSetFilter, onSetCompare, onRun }) {
             {DISPLAY_COLUMNS_BY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FilterField>
-        <FilterField label="Show rows">
-          <select
-            value={filters.includeZero ? 'all' : (filters.includeDeleted ? 'all' : 'active')}
-            onChange={(e) => {
-              const v = e.target.value;
-              onSetFilter({
-                includeZero: v === 'all',
-                includeDeleted: false,
-              });
-            }}
-            className={fieldCls}
-          >
-            {SHOW_ROWS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-        </FilterField>
-        <FilterField label="Compare another period">
+
+        <FilterField label="Compare to" className="w-[170px]">
           <select
             value={compare.with}
-            onChange={(e) => onSetCompare({ with: e.target.value })}
+            onChange={(e) => onSetCompare(compareSelection(e.target.value, compare.count))}
             className={fieldCls}
           >
-            {COMPARE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <CompareOptions />
           </select>
         </FilterField>
-      </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        {/* Accounting method radio group */}
-        <div className="flex items-center gap-3">
-          <span className="text-[11.5px] font-semibold uppercase tracking-wider text-navy-500">Accounting method</span>
-          <label className="inline-flex items-center gap-1.5 text-[13px] cursor-pointer">
-            <input
-              type="radio"
-              name="qb-basis"
-              checked={filters.basis === 'cash'}
-              onChange={() => onSetFilter({ basis: 'cash' })}
-              className="accent-emerald-600"
-            />
-            Cash
-          </label>
-          <label className="inline-flex items-center gap-1.5 text-[13px] cursor-pointer">
-            <input
-              type="radio"
-              name="qb-basis"
-              checked={filters.basis === 'accrual'}
-              onChange={() => onSetFilter({ basis: 'accrual' })}
-              className="accent-emerald-600"
-            />
-            Accrual
-          </label>
+        <div className="grow" />
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={onEmail}
+            className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
+          >
+            <Mail size={15} /> Email
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
+          >
+            <Printer size={15} /> Print
+          </button>
+          <ExportMenu
+            meta={exportMeta}
+            trigger={(
+              <button
+                type="button"
+                className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold"
+              >
+                <Download size={15} /> Export
+              </button>
+            )}
+          />
         </div>
-
-        <span className="grow" />
 
         <button
           type="button"
           onClick={onRun}
-          className="h-9 px-4 rounded-md text-white text-[13px] font-semibold inline-flex items-center gap-1.5 shadow-soft hover:opacity-95"
-          style={{ background: '#2CA01C' }}
+          className="h-9 px-4 rounded-md text-white text-[13px] font-semibold inline-flex items-center gap-1.5 shadow-soft hover:opacity-95 shrink-0"
+          style={{ background: QB_GREEN }}
         >
           <Play size={13} /> Run report
         </button>
@@ -342,9 +449,18 @@ function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetC
               {DISPLAY_COLUMNS_BY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </FilterField>
+          <FilterField label="Show rows">
+            <select
+              value={filters.includeZero ? 'all' : 'active'}
+              onChange={(e) => onSetFilter({ includeZero: e.target.value === 'all' })}
+              className={fieldCls}
+            >
+              {SHOW_ROWS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </FilterField>
           <FilterField label="Compare another period">
-            <select value={compare.with} onChange={(e) => onSetCompare({ with: e.target.value })} className={fieldCls}>
-              {COMPARE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <select value={compare.with} onChange={(e) => onSetCompare(compareSelection(e.target.value, compare.count))} className={fieldCls}>
+              <CompareOptions />
             </select>
           </FilterField>
           <FilterField label="Number of periods">
@@ -392,7 +508,7 @@ function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetC
 
       <div className="mt-auto px-5 py-3 border-t border-navy-100 dark:border-navy-800 flex items-center gap-2">
         <button type="button" onClick={onClose} className="h-9 px-3 rounded-md border border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 text-[12.5px] font-semibold">Cancel</button>
-        <button type="button" onClick={onClose} className="h-9 px-3 rounded-md text-white text-[12.5px] font-semibold ml-auto" style={{ background: '#2CA01C' }}>
+        <button type="button" onClick={onClose} className="h-9 px-3 rounded-md text-white text-[12.5px] font-semibold ml-auto" style={{ background: QB_GREEN }}>
           Run report
         </button>
       </div>
@@ -404,11 +520,15 @@ function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetC
 // QBReportViewer — main export
 
 const VIEW_TABS = [
-  { id: 'table', icon: TableIcon, label: 'Table' },
-  { id: 'bar',   icon: BarChart3, label: 'Chart · Bar' },
-  { id: 'pie',   icon: PieChart,  label: 'Chart · Pie' },
-  { id: 'line',  icon: LineChart, label: 'Chart · Line' },
+  { id: 'table', icon: TableIcon, label: 'Compact' },
+  { id: 'bar',   icon: BarChart3, label: 'Bar' },
+  { id: 'pie',   icon: PieChart,  label: 'Pie' },
+  { id: 'line',  icon: LineChart, label: 'Line' },
 ];
+
+function iconBtnCls() {
+  return 'h-8 w-8 grid place-items-center rounded-md text-navy-500 hover:bg-navy-100 dark:hover:bg-navy-800';
+}
 
 export default function QBReportViewer() {
   const dispatch = useDispatch();
@@ -423,6 +543,7 @@ export default function QBReportViewer() {
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const favorited = !!favorites[report.name];
 
@@ -437,13 +558,40 @@ export default function QBReportViewer() {
   };
   const loading = status === 'loading';
 
-  const periodText = useMemo(
-    () => periodLabel(filters.dateRange, filters.customFrom, filters.customTo),
-    [filters.dateRange, filters.customFrom, filters.customTo],
+  const periodText = useMemo(() => {
+    // Contact / list reports show no period line.
+    if (NO_PERIOD_REPORTS.has(report.name)) return '';
+    const r = resolvePresetRange(filters.dateRange, { from: filters.customFrom, to: filters.customTo });
+    // Balance-sheet-style reports read as "As of <to-date>".
+    if (AS_OF_REPORTS.has(report.name)) {
+      const lbl = asOfLabel(filters.customTo || r.to_date);
+      if (lbl) return lbl;
+    }
+    // Cash-flow-style reports read as the spelled-out date range.
+    if (RANGE_TITLE_REPORTS.has(report.name)) {
+      const lbl = rangeTitle(filters.customFrom || r.from_date, filters.customTo || r.to_date);
+      if (lbl) return lbl;
+    }
+    // "Since <date>" reports read from the period's start date.
+    if (SINCE_REPORTS.has(report.name)) {
+      const lbl = sinceLabel(filters.customFrom || r.from_date);
+      if (lbl) return lbl;
+    }
+    return periodLabel(filters.dateRange, filters.customFrom, filters.customTo);
+  }, [report.name, filters.dateRange, filters.customFrom, filters.customTo]);
+
+  const basisText = filters.basis === 'cash' ? 'Cash basis' : 'Accrual basis';
+  const nowText = useMemo(
+    () => new Date().toLocaleString(undefined, {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }),
+    [],
   );
 
-  // Re-fetch on demand (Run report button)
-  const runReport = () => dispatch(loadReportData({ reportName: report.name, clientId: client?.id, provider: 'quickbooks' }));
+  // Re-fetch on demand (Run report button). provider comes from the open report
+  // so the common viewer fetches the correct backend (Zoho / QuickBooks / Xero).
+  const runReport = () => dispatch(loadReportData({ reportName: report.name, clientId: client?.id, provider: report.provider }));
 
   // Auto-load on mount; the modal also kicks loadReportData on open.
   useEffect(() => {
@@ -453,77 +601,98 @@ export default function QBReportViewer() {
 
   return (
     <>
-      <QBToolbar
+      <QBTopBar
         report={report}
         favorited={favorited}
         onToggleFavorite={() => dispatch(toggleFavorite(report.name))}
-        onCustomize={() => setCustomizeOpen((o) => !o)}
         onClose={() => dispatch(closeReport())}
-        onSaveCustom={handleSaveCustom}
-        savedToast={savedToast}
       />
 
-      <QBFilterBar
+      <QBControlsBar
         filters={filters}
         compare={compare}
         onSetFilter={(patch) => dispatch(setFilter(patch))}
         onSetCompare={(patch) => dispatch(setCompare(patch))}
         onRun={runReport}
+        onCustomize={() => setCustomizeOpen((o) => !o)}
+        onSaveCustom={handleSaveCustom}
+        savedToast={savedToast}
+        onRefresh={runReport}
+        onEmail={() => setEmailOpen(true)}
+        exportMeta={{ company: client?.name, basis: basisText, from: filters.customFrom, to: filters.customTo }}
       />
 
       {/* Body grid: main area + optional customize rail */}
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 min-w-0 overflow-y-auto scroll-thin bg-white dark:bg-navy-950">
-          {/* View tabs (Table / Chart kinds) */}
-          <div className="border-b border-navy-100 dark:border-navy-800 px-4 sm:px-6 py-2 flex items-center gap-1 overflow-x-auto scroll-thin">
-            {VIEW_TABS.map((t) => {
-              const Icon = t.icon;
-              const active = view === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => dispatch(setView(t.id))}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[12.5px] font-semibold border whitespace-nowrap transition',
-                    active
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white dark:bg-navy-900 border-navy-200 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800',
-                  )}
-                >
-                  <Icon size={13} /> {t.label}
-                </button>
-              );
-            })}
-            <span className="grow" />
-            <span className="text-[11.5px] text-navy-500 hidden md:inline">
-              Last run · just now
-            </span>
-          </div>
-
+        <div className="flex-1 min-w-0 overflow-y-auto scroll-thin bg-navy-50/40 dark:bg-navy-950">
           {/* Report sheet */}
           <div className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-[1400px] mx-auto bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-800 rounded-lg shadow-card p-6 sm:p-10">
-              <div className="text-center mb-6">
-                <div className="text-[18px] font-bold text-navy-900 dark:text-white">{client?.name || 'Oremus'}</div>
-                <div className="text-[15px] font-semibold text-navy-800 dark:text-navy-200">{report.name}</div>
-                <div className="text-[11.5px] text-navy-500 mt-1 capitalize">
-                  {filters.basis === 'cash' ? 'Cash Basis' : 'Accrual Basis'} · {dateLabel}
+            <div className="max-w-[1200px] mx-auto bg-white dark:bg-navy-900 border border-navy-200 dark:border-navy-800 rounded-lg shadow-card">
+              {/* Sheet toolbar: view density tabs (icon actions live in the controls bar) */}
+              <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b border-navy-100 dark:border-navy-800">
+                <div className="flex items-center gap-1 overflow-x-auto scroll-thin">
+                  {VIEW_TABS.map((t) => {
+                    const Icon = t.icon;
+                    const active = view === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => dispatch(setView(t.id))}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md text-[12.5px] font-semibold whitespace-nowrap transition',
+                          active
+                            ? 'bg-navy-100 dark:bg-navy-800 text-navy-900 dark:text-white'
+                            : 'text-navy-500 hover:bg-navy-50 dark:hover:bg-navy-800',
+                        )}
+                      >
+                        <Icon size={13} /> {t.label}
+                        {t.id === 'table' && active && <ChevronDown size={12} className="text-navy-400" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {loading || !data ? (
-                <ReportSkeleton />
-              ) : view === 'table' ? (
-                <ReportTable data={data} />
-              ) : (
-                <ReportChart kind={view} data={data} height={420} />
-              )}
+              {/* Centered title block */}
+              <div className="px-4 sm:px-10 pt-7 pb-2 text-center">
+                <div className="text-[22px] font-bold text-navy-900 dark:text-white leading-tight">
+                  {client?.name || 'Oremus'}
+                </div>
+                <div className="text-[14px] text-navy-700 dark:text-navy-200 mt-1">{report.name}</div>
+                <div className="text-[12.5px] text-navy-500 mt-0.5">{periodText}</div>
+              </div>
 
-              <div className="mt-6 pt-4 border-t border-navy-100 dark:border-navy-800 text-[10.5px] text-navy-400 flex items-center justify-between">
-                <span>Generated {new Date().toLocaleString()}</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Calendar size={11} /> Confidential
+              {/* Report body */}
+              <div className="px-4 sm:px-8 pb-2">
+                {loading || !data ? (
+                  <ReportSkeleton />
+                ) : data.emptyMessage && (!data.rows || data.rows.length === 0) ? (
+                  <div className="py-10">
+                    <div className="rounded-md border border-sky-200 dark:border-sky-900/60 bg-sky-50/70 dark:bg-sky-950/30 px-4 py-3 text-[13px] text-navy-700 dark:text-navy-200">
+                      <span className="font-semibold">{data.emptyMessage.split('.')[0]}.</span>
+                      {data.emptyMessage.slice(data.emptyMessage.indexOf('.') + 1)}
+                    </div>
+                  </div>
+                ) : view === 'table' ? (
+                  <ReportTable data={data} variant="quickbooks" />
+                ) : (
+                  <ReportChart kind={view} data={data} height={420} />
+                )}
+                {!loading && data?.note && (
+                  <div className="mt-6 border-t border-navy-100 dark:border-navy-800 pt-4 text-[12px] text-navy-500 dark:text-navy-400 text-center leading-relaxed">
+                    {data.note}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer: add note (left) · basis | timestamp (right) */}
+              <div className="px-4 sm:px-8 py-3 border-t border-navy-100 dark:border-navy-800 flex items-center justify-between gap-3 text-[12px]">
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold">
+                  <FileText size={13} /> Add note
+                </span>
+                <span className="text-navy-500 dark:text-navy-400">
+                  {basisText} <span className="text-navy-300 dark:text-navy-600">|</span> {nowText}
                 </span>
               </div>
             </div>
@@ -539,6 +708,14 @@ export default function QBReportViewer() {
           onSetCompare={(patch) => dispatch(setCompare(patch))}
         />
       </div>
+
+      <SendReportModal
+        open={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        reportName={report.name}
+        data={data}
+        meta={{ company: client?.name, basis: basisText, from: filters.customFrom, to: filters.customTo }}
+      />
     </>
   );
 }
