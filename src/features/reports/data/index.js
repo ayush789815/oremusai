@@ -4,8 +4,6 @@
 // catalog access.
 
 import { ZOHO_CATEGORIES,  ZOHO_REPORTS_BY_CAT } from './zoho.js';
-import { QB_CATEGORIES,    QB_REPORTS_BY_CAT }   from './quickbooks.js';
-import { XERO_CATEGORIES,  XERO_REPORTS_BY_CAT } from './xero.js';
 
 function flatten(byCat) {
   return Object.entries(byCat).flatMap(([cat, list]) =>
@@ -13,22 +11,21 @@ function flatten(byCat) {
   );
 }
 
+// The finalized set of 37 reports is COMMON across every provider — Zoho,
+// QuickBooks and Xero all expose the same catalog so a client sees the same
+// reports regardless of which platform they're connected to. The live-data flow
+// stays provider-aware in reportsAPI (Zoho → /zb-reports, QB/Xero → /accounting),
+// and any report the provider can't serve live degrades gracefully to mock.
+const COMMON_CATALOG = {
+  categories:        ZOHO_CATEGORIES,
+  reportsByCategory: ZOHO_REPORTS_BY_CAT,
+  allReports:        flatten(ZOHO_REPORTS_BY_CAT),
+};
+
 export const CATALOGS = {
-  zoho: {
-    categories:       ZOHO_CATEGORIES,
-    reportsByCategory: ZOHO_REPORTS_BY_CAT,
-    allReports:       flatten(ZOHO_REPORTS_BY_CAT),
-  },
-  quickbooks: {
-    categories:       QB_CATEGORIES,
-    reportsByCategory: QB_REPORTS_BY_CAT,
-    allReports:       flatten(QB_REPORTS_BY_CAT),
-  },
-  xero: {
-    categories:       XERO_CATEGORIES,
-    reportsByCategory: XERO_REPORTS_BY_CAT,
-    allReports:       flatten(XERO_REPORTS_BY_CAT),
-  },
+  zoho:       COMMON_CATALOG,
+  quickbooks: COMMON_CATALOG,
+  xero:       COMMON_CATALOG,
 };
 
 export function getCatalog(providerId) {

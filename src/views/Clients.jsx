@@ -245,9 +245,18 @@ export default function Clients() {
 
         {/* ── Error banner ── */}
         {apiError && (
-          <div className="px-5 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex items-center gap-2 text-[12.5px] text-red-600 dark:text-red-400">
-            <AlertCircle size={13} />
-            {apiError}
+          <div className="px-5 py-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800 flex items-center justify-between gap-3 text-[12.5px] text-red-600 dark:text-red-400">
+            <span className="flex items-center gap-2">
+              <AlertCircle size={13} />
+              We couldn’t load your clients right now. Please try again.
+            </span>
+            <button
+              type="button"
+              onClick={() => dispatch(fetchClients(search))}
+              className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline"
+            >
+              Try again
+            </button>
           </div>
         )}
 

@@ -71,43 +71,35 @@ export async function exportReportFile({ data, reportName = 'Report', format = '
   downloadBlob(res.data, `${base} ${stamp}.${ext}`);
 }
 
+// Honest empty payload — rendered as a "no data" illustration by the viewer.
+// `emptyReason`: 'error' (live fetch failed) | 'no_data' (fetched ok, no rows).
+const emptyReport = (reason) => ({ columns: [], rows: [], empty: true, emptyReason: reason });
+
 export async function fetchReportData({ reportName, clientId, provider, filters } = {}) {
   const liveType = resolveLiveType(provider, reportName);
 
-  // Zoho live path — fetch from existing Zoho reports endpoint (unchanged).
-  if (liveType && provider === 'zoho') {
+  // Live-capable reports fetch real data from the provider's backend
+  // (Zoho → /zb-reports, QuickBooks & Xero → the provider-agnostic /accounting
+  // engine). When the call fails — or succeeds but returns no rows — we surface
+  // an honest empty state instead of fabricating mock numbers, so a connected
+  // client never sees dummy data where live data was expected.
+  if (liveType) {
+    const endpoint = provider === 'zoho' ? `/zb-reports/${liveType}` : `/accounting/${liveType}`;
     try {
       const params = buildParams(filters);
-      const { data } = await axiosClient.get(`/zb-reports/${liveType}`, { params });
-      if (data && Array.isArray(data.rows)) return data;
+      const { data } = await axiosClient.get(endpoint, { params });
+      if (data && Array.isArray(data.rows)) {
+        return data.rows.length > 0 ? data : { ...data, empty: true, emptyReason: 'no_data' };
+      }
+      return emptyReport('no_data');
     } catch (e) {
-      console.warn(`[reportsAPI] Zoho report '${reportName}' fell back to mock: ${e?.response?.data?.error || e.message}`);
+      console.warn(`[reportsAPI] ${provider} report '${reportName}' failed: ${e?.response?.data?.error || e.message}`);
+      return emptyReport('error');
     }
   }
 
-  // QuickBooks live path — provider-agnostic accounting engine.
-  if (liveType && provider === 'quickbooks') {
-    try {
-      const params = buildParams(filters);
-      const { data } = await axiosClient.get(`/accounting/${liveType}`, { params });
-      if (data && Array.isArray(data.rows)) return data;
-    } catch (e) {
-      console.warn(`[reportsAPI] QuickBooks report '${reportName}' fell back to mock: ${e?.response?.data?.error || e.message}`);
-    }
-  }
-
-  // Xero live path — provider-agnostic accounting engine (same endpoint as QB).
-  if (liveType && provider === 'xero') {
-    try {
-      const params = buildParams(filters);
-      const { data } = await axiosClient.get(`/accounting/${liveType}`, { params });
-      if (data && Array.isArray(data.rows)) return data;
-    } catch (e) {
-      console.warn(`[reportsAPI] Xero report '${reportName}' fell back to mock: ${e?.response?.data?.error || e.message}`);
-    }
-  }
-
-  // Fallback / non-Zoho / unmapped Zoho path: mock generator.
+  // Demo-only catalog entries with no backend endpoint keep the sample generator
+  // so the catalog still renders a meaningful preview.
   return new Promise((resolve) => {
     setTimeout(() => {
       const base = generateReport(reportName);

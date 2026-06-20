@@ -4,15 +4,18 @@ import { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import ZohoReportsLayout from '../components/reports/zoho/ZohoReportsLayout.jsx';
-import QBReportsLayout from '../components/reports/quickbooks/QBReportsLayout.jsx';
-import XeroReportsLayout from '../components/reports/xero/XeroReportsLayout.jsx';
 import { setProvider } from '../features/reports/reportsSlice.js';
 import { isValidProvider, DEFAULT_PROVIDER } from '../features/reports/data/providers.js';
 
+// All providers (Zoho / QuickBooks / Xero) share the same card-grid Reports
+// layout so a client sees the identical 37-report experience regardless of
+// which platform they're connected to. The layout is provider-agnostic — it
+// reads the active provider from the slice and the common report catalog — and
+// the live-data flow stays provider-aware in reportsAPI.
 const LAYOUTS = {
   zoho:       ZohoReportsLayout,
-  quickbooks: QBReportsLayout,
-  xero:       XeroReportsLayout,
+  quickbooks: ZohoReportsLayout,
+  xero:       ZohoReportsLayout,
 };
 
 export default function Reports() {

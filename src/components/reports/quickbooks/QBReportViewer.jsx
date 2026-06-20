@@ -15,7 +15,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   X, ArrowLeft, ChevronDown, Star, Sliders, Save, Mail, Printer, Download,
   Play, BarChart3, PieChart, LineChart, Table as TableIcon, MoreHorizontal,
-  RefreshCw, FileText,
+  RefreshCw, FileText, FileSearch,
 } from 'lucide-react';
 import ReportTable from '../ReportTable.jsx';
 import ReportChart from '../ReportChart.jsx';
@@ -530,6 +530,46 @@ function iconBtnCls() {
   return 'h-8 w-8 grid place-items-center rounded-md text-navy-500 hover:bg-navy-100 dark:hover:bg-navy-800';
 }
 
+// Empty / failed-fetch illustration shown in place of a report sheet when a
+// live report returns no data. Replaces the old mock-data fallback so a
+// connected client sees an honest "no data" state instead of dummy numbers.
+function ReportEmptyState({ reason, onRetry }) {
+  const isError = reason === 'error';
+  const title = isError ? 'Unable to load this report' : 'No data to display';
+  const subtitle = isError
+    ? "We couldn't fetch live data for this report. Your connection may be unavailable or still syncing — please try again."
+    : 'There are no records for the selected period. Try a different date range.';
+  return (
+    <div className="py-16 px-6 flex flex-col items-center justify-center text-center">
+      <div className="relative mb-5">
+        <div className="h-20 w-20 rounded-2xl bg-navy-50 dark:bg-navy-800/60 border border-navy-200/70 dark:border-navy-700 grid place-items-center">
+          <FileSearch size={34} className="text-navy-300 dark:text-navy-500" strokeWidth={1.5} />
+        </div>
+        <span
+          className={cn(
+            'absolute -bottom-1.5 -right-1.5 h-7 w-7 rounded-full grid place-items-center text-white text-[15px] font-bold shadow-sm',
+            isError ? 'bg-rose-400 dark:bg-rose-500' : 'bg-navy-300 dark:bg-navy-600',
+          )}
+        >
+          {isError ? '!' : '∅'}
+        </span>
+      </div>
+      <h3 className="text-[15px] font-semibold text-navy-800 dark:text-navy-100">{title}</h3>
+      <p className="mt-1.5 max-w-sm text-[12.5px] leading-relaxed text-navy-500 dark:text-navy-400">{subtitle}</p>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-5 inline-flex items-center gap-1.5 h-9 px-4 rounded-md text-[12.5px] font-semibold text-white shadow-sm"
+          style={{ background: QB_GREEN }}
+        >
+          <RefreshCw size={13} /> Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function QBReportViewer() {
   const dispatch = useDispatch();
   const report = useSelector(selectOpenReport);
@@ -674,6 +714,8 @@ export default function QBReportViewer() {
                       {data.emptyMessage.slice(data.emptyMessage.indexOf('.') + 1)}
                     </div>
                   </div>
+                ) : data.empty || !data.rows || data.rows.length === 0 ? (
+                  <ReportEmptyState reason={data.emptyReason} onRetry={runReport} />
                 ) : view === 'table' ? (
                   <ReportTable data={data} variant="quickbooks" />
                 ) : (
