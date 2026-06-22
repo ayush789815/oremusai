@@ -533,12 +533,25 @@ function iconBtnCls() {
 // Empty / failed-fetch illustration shown in place of a report sheet when a
 // live report returns no data. Replaces the old mock-data fallback so a
 // connected client sees an honest "no data" state instead of dummy numbers.
-function ReportEmptyState({ reason, onRetry }) {
+function ReportEmptyState({ reason, message, onRetry }) {
   const isError = reason === 'error';
-  const title = isError ? 'Unable to load this report' : 'No data to display';
-  const subtitle = isError
-    ? "We couldn't fetch live data for this report. Your connection may be unavailable or still syncing — please try again."
-    : 'There are no records for the selected period. Try a different date range.';
+  const isUnavailable = reason === 'unavailable';
+  const isRangeTooLong = reason === 'range_too_long';
+  const title = isError
+    ? 'Unable to load this report'
+    : isUnavailable
+      ? 'Not available for this connection'
+      : isRangeTooLong
+        ? 'Date range too wide'
+        : 'No data to display';
+  const subtitle = message
+    ? message
+    : isError
+      ? "We couldn't fetch live data for this report. Your connection may be unavailable or still syncing — please try again."
+      : isUnavailable
+        ? "Your accounting provider's API doesn't offer this report, so there's nothing to display here."
+        : 'There are no records for the selected period. Try a different date range.';
+  const showRetry = onRetry && !isUnavailable && !isRangeTooLong;
   return (
     <div className="py-16 px-6 flex flex-col items-center justify-center text-center">
       <div className="relative mb-5">
@@ -556,7 +569,7 @@ function ReportEmptyState({ reason, onRetry }) {
       </div>
       <h3 className="text-[15px] font-semibold text-navy-800 dark:text-navy-100">{title}</h3>
       <p className="mt-1.5 max-w-sm text-[12.5px] leading-relaxed text-navy-500 dark:text-navy-400">{subtitle}</p>
-      {onRetry && (
+      {showRetry && (
         <button
           type="button"
           onClick={onRetry}
@@ -715,7 +728,7 @@ export default function QBReportViewer() {
                     </div>
                   </div>
                 ) : data.empty || !data.rows || data.rows.length === 0 ? (
-                  <ReportEmptyState reason={data.emptyReason} onRetry={runReport} />
+                  <ReportEmptyState reason={data.emptyReason} message={data.message} onRetry={runReport} />
                 ) : view === 'table' ? (
                   <ReportTable data={data} variant="quickbooks" />
                 ) : (

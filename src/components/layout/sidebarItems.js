@@ -14,17 +14,7 @@ export const SIDEBAR_ITEMS = [
   // { id: 'admin',      label: 'Admin Console', icon: 'Shield',       to: '/admin',         roles: ['admin'] },
   { id: "transactions",  label: "Transactions",  icon: "BookOpen",     to: "/transactions",  badge: "Day Book", permission: "Day Book" },
   { id: "accounts",      label: "Accounts",      icon: "Layers",       to: "/accounts",      permission: "Accounts"      },
-  {
-    id: 'reports',
-    label: 'Reports',
-    icon: 'FileBarChart',
-    permission: 'Reports',
-    children: [
-      { id: 'reports-zoho',       label: 'Reports', icon: 'BookOpen',         to: '/reports',            accent: '#E42527', provider: 'zoho', end: true },
-      { id: 'reports-quickbooks', label: 'Reports', icon: 'BadgeDollarSign',  to: '/reports/quickbooks', accent: '#2CA01C', provider: 'quickbooks' },
-      { id: 'reports-xero',       label: 'Reports', icon: 'Cloud',            to: '/reports/xero',       accent: '#13B5EA', provider: 'xero'       },
-    ],
-  },
+  { id: 'reports', label: 'Reports', icon: 'FileBarChart', to: '/reports', permission: 'Reports' },
   { id: "customers",     label: "Customers",     icon: "Users",        to: "/customers",     permission: "Customers"     },
   { id: "vendors",       label: "Vendors",       icon: "Truck",        to: "/vendors",       permission: "Vendors"       },
   { id: "expenses",      label: "Expenses",      icon: "Wallet",       to: "/expenses",      permission: "Expenses"      },

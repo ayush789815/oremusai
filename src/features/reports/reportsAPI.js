@@ -89,7 +89,11 @@ export async function fetchReportData({ reportName, clientId, provider, filters 
       const params = buildParams(filters);
       const { data } = await axiosClient.get(endpoint, { params });
       if (data && Array.isArray(data.rows)) {
-        return data.rows.length > 0 ? data : { ...data, empty: true, emptyReason: 'no_data' };
+        // Preserve a backend-supplied reason (e.g. 'unavailable' when the
+        // provider's API has no such report) instead of always saying 'no_data'.
+        return data.rows.length > 0
+          ? data
+          : { ...data, empty: true, emptyReason: data.emptyReason || 'no_data' };
       }
       return emptyReport('no_data');
     } catch (e) {
