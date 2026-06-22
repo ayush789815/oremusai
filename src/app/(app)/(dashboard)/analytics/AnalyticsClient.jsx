@@ -2,42 +2,110 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Sparkles, Send, Loader2 } from 'lucide-react';
+import {
+  Sparkles, Send, Loader2, ChevronDown, Code2, BarChart3, Hash, TrendingUp, Trophy,
+} from 'lucide-react';
 import { selectUser } from '@/features/auth/authSlice.js';
 import { askAI } from '@/services/aiClient.js';
 
+const CHART_COLORS = ['#6366f1', '#06b6d4', '#8b5cf6', '#0ea5e9', '#14b8a6', '#a855f7', '#3b82f6', '#22d3ee'];
+
+// Compact number for stat-card headlines: 2,175,550 → "2.18M".
+function fmtCompact(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v);
+  const a = Math.abs(n);
+  if (a >= 1e9) return `${(n / 1e9).toFixed(2).replace(/\.?0+$/, '')}B`;
+  if (a >= 1e6) return `${(n / 1e6).toFixed(2).replace(/\.?0+$/, '')}M`;
+  if (a >= 1e3) return `${(n / 1e3).toFixed(1).replace(/\.0$/, '')}K`;
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function fmtFull(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toLocaleString(undefined, { maximumFractionDigits: 2 }) : String(v);
+}
+
 const MAX_TABLE_ROWS = 50;
 
-// Renders a SELECT result set returned by /query as a compact, scrollable table.
+// Columns whose integer values are identifiers, not quantities — keep them raw
+// (no thousands separators turning a year "2025" into "2,025").
+const ID_LIKE = /(^|[_\s])(id|year|code|no|num|number|phone|pin|zip)([_\s]|$)/i;
+
+// "total_revenue" → "Total Revenue".
+function titleize(k) {
+  return String(k).replace(/[_\s]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+}
+
+function isNumeric(v) {
+  if (v === null || v === undefined || v === '') return false;
+  if (typeof v === 'number') return Number.isFinite(v);
+  if (typeof v === 'string') { const t = v.trim(); return t !== '' && !Number.isNaN(Number(t)); }
+  return false;
+}
+
+// Format a cell: numbers get grouped thousands + trimmed decimals (2175550.0000
+// → "2,175,550", 295332.28 → "295,332.28"); identifiers stay raw; null → "—".
+function formatCell(v, numeric, idLike) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (!numeric) return String(v);
+  const n = Number(v);
+  if (idLike) return String(Math.trunc(n));
+  const whole = Number.isInteger(n);
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+// Renders a SELECT result set returned by /query as a clean, scrollable table:
+// title-cased headers, right-aligned + grouped numbers, zebra rows.
 function ResultTable({ rows }) {
   if (!rows.length) return <div className="text-[12px] text-navy-500">No rows returned.</div>;
   // Show only columns that have at least one value (SELECT * yields many nulls).
   const keys = Object.keys(rows[0]).filter((k) =>
     rows.some((r) => r[k] !== null && r[k] !== '' && r[k] !== undefined));
   const shown = rows.slice(0, MAX_TABLE_ROWS);
+  // Per-column metadata: numeric when every non-empty value parses as a number.
+  const meta = keys.map((k) => {
+    const vals = rows.map((r) => r[k]).filter((v) => v !== null && v !== '' && v !== undefined);
+    const numeric = vals.length > 0 && vals.every(isNumeric);
+    return { key: k, numeric, idLike: ID_LIKE.test(k), align: numeric && !ID_LIKE.test(k) };
+  });
   return (
-    <div>
-      <div className="text-[11px] text-navy-500 mb-1">
-        {rows.length} row{rows.length === 1 ? '' : 's'}
-        {rows.length > shown.length ? ` · showing first ${shown.length}` : ''}
+    <div className="rounded-lg border border-navy-100 dark:border-navy-800 overflow-hidden">
+      <div className="px-3 py-2 bg-navy-50/70 dark:bg-navy-900/60 border-b border-navy-100 dark:border-navy-800">
+        <span className="text-[11px] font-medium text-navy-500 dark:text-navy-400">
+          {rows.length} row{rows.length === 1 ? '' : 's'}
+          {rows.length > shown.length ? ` · showing first ${shown.length}` : ''}
+        </span>
       </div>
-      <div className="overflow-auto max-h-[420px] rounded-md border border-navy-100 dark:border-navy-800">
-        <table className="text-[11px] border-collapse">
+      <div className="overflow-auto max-h-[440px]">
+        <table className="w-full text-[12px] border-collapse">
           <thead>
             <tr>
-              {keys.map((k) => (
-                <th key={k} className="sticky top-0 bg-navy-50 dark:bg-navy-900 px-2.5 py-1.5 text-left font-semibold text-navy-500 dark:text-navy-300 whitespace-nowrap border-b border-navy-100 dark:border-navy-800">
-                  {k}
+              {meta.map((m) => (
+                <th
+                  key={m.key}
+                  className={`sticky top-0 z-10 bg-navy-100/90 dark:bg-navy-900 px-3 py-2 font-semibold text-navy-600 dark:text-navy-200 whitespace-nowrap border-b border-navy-200 dark:border-navy-700 ${m.align ? 'text-right' : 'text-left'}`}
+                >
+                  {titleize(m.key)}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {shown.map((r, i) => (
-              <tr key={i} className="border-b border-navy-50 dark:border-navy-800/40">
-                {keys.map((k) => (
-                  <td key={k} className="px-2.5 py-1 whitespace-nowrap text-navy-700 dark:text-navy-300">
-                    {r[k] == null ? '' : String(r[k])}
+              <tr
+                key={i}
+                className="odd:bg-white even:bg-navy-50/40 dark:odd:bg-transparent dark:even:bg-navy-800/30 hover:bg-brand-50/60 dark:hover:bg-navy-800/60 transition-colors"
+              >
+                {meta.map((m) => (
+                  <td
+                    key={m.key}
+                    className={`px-3 py-1.5 whitespace-nowrap border-b border-navy-50 dark:border-navy-800/40 ${m.align ? 'text-right tabular-nums font-medium text-navy-800 dark:text-navy-100' : 'text-navy-700 dark:text-navy-300'}`}
+                  >
+                    {formatCell(r[m.key], m.numeric, m.idLike)}
                   </td>
                 ))}
               </tr>
@@ -49,23 +117,150 @@ function ResultTable({ rows }) {
   );
 }
 
-// Render an AI reply: a natural-language answer, the executed SQL, and/or a data table.
+// Inspect a result set to pick the best label + value columns for headline
+// stats and the chart. Returns null when there's nothing numeric to surface.
+function analyze(rows) {
+  if (!rows || !rows.length) return null;
+  const keys = Object.keys(rows[0]).filter((k) => rows.some((r) => r[k] != null && r[k] !== ''));
+  const numericKeys = keys.filter((k) => {
+    if (ID_LIKE.test(k)) return false;
+    const vals = rows.map((r) => r[k]).filter((v) => v != null && v !== '');
+    return vals.length > 0 && vals.every(isNumeric);
+  });
+  const labelKey = keys.find((k) => !numericKeys.includes(k) && !ID_LIKE.test(k))
+    || keys.find((k) => !numericKeys.includes(k))
+    || keys[0];
+  return { keys, numericKeys, labelKey, valueKey: numericKeys[0] || null };
+}
+
+// A single headline metric card.
+function StatCard({ icon: Icon, label, value, sub, accent }) {
+  return (
+    <div className="rounded-xl border border-navy-100 dark:border-navy-800 bg-white dark:bg-navy-900/50 px-4 py-3 min-w-0">
+      <div className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-navy-400">
+        {Icon && <Icon size={12} />}
+        <span className="truncate">{label}</span>
+      </div>
+      <div className={`text-[20px] font-bold tabular-nums mt-1 ${accent || 'text-navy-900 dark:text-white'}`}>{value}</div>
+      {sub && <div className="text-[11px] text-navy-500 dark:text-navy-400 mt-0.5 truncate">{sub}</div>}
+    </div>
+  );
+}
+
+// Headline KPI cards derived from the primary numeric column.
+function Insights({ rows, analysis }) {
+  const { labelKey, valueKey } = analysis;
+  if (!valueKey) return null;
+  const nums = rows.map((r) => Number(r[valueKey])).filter(Number.isFinite);
+  if (!nums.length) return null;
+
+  if (rows.length === 1) {
+    const r = rows[0];
+    const subLabel = labelKey && labelKey !== valueKey ? `${titleize(labelKey)}: ${r[labelKey]}` : null;
+    return (
+      <div className="grid grid-cols-1">
+        <StatCard
+          icon={TrendingUp}
+          label={titleize(valueKey)}
+          value={fmtFull(r[valueKey])}
+          sub={subLabel}
+          accent="text-brand-600 dark:text-brand-400"
+        />
+      </div>
+    );
+  }
+
+  const total = nums.reduce((a, b) => a + b, 0);
+  const topRow = rows.reduce((best, r) => (Number(r[valueKey]) > Number(best[valueKey]) ? r : best), rows[0]);
+  const valTitle = titleize(valueKey);
+  const totalLabel = /^total\b/i.test(valTitle) ? valTitle : `Total ${valTitle}`;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+      <StatCard icon={TrendingUp} label={totalLabel} value={fmtCompact(total)} sub={fmtFull(total)} accent="text-brand-600 dark:text-brand-400" />
+      <StatCard icon={Hash} label="Records" value={rows.length.toLocaleString()} sub={`${titleize(labelKey)} breakdown`} />
+      <StatCard icon={Trophy} label="Top result" value={fmtCompact(topRow[valueKey])} sub={String(topRow[labelKey])} accent="text-cyan-600 dark:text-cyan-400" />
+    </div>
+  );
+}
+
+// Horizontal bar chart of the top entries — only when there's a label + value
+// pair and more than one row to compare. Pure CSS bars: deterministic widths,
+// instant render, no chart-library scale quirks.
+function InsightChart({ rows, analysis }) {
+  const { labelKey, valueKey } = analysis;
+  if (!valueKey || !labelKey || labelKey === valueKey || rows.length < 2) return null;
+  const data = rows
+    .map((r) => ({ name: r[labelKey] == null || r[labelKey] === '' ? '—' : String(r[labelKey]), value: Number(r[valueKey]) }))
+    .filter((d) => Number.isFinite(d.value))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+  if (data.length < 2) return null;
+  const max = Math.max(...data.map((d) => Math.abs(d.value)), 0) || 1;
+  return (
+    <div className="rounded-xl border border-navy-100 dark:border-navy-800 bg-white dark:bg-navy-900/50 p-3.5">
+      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-navy-500 dark:text-navy-300 mb-3">
+        <BarChart3 size={13} /> Top {data.length} by {titleize(valueKey)}
+      </div>
+      <div className="space-y-2.5">
+        {data.map((d, i) => (
+          <div key={i}>
+            <div className="flex items-center justify-between gap-3 text-[11.5px] mb-1">
+              <span className="truncate text-navy-600 dark:text-navy-300">{d.name}</span>
+              <span className="shrink-0 tabular-nums font-semibold text-navy-800 dark:text-navy-100">{fmtFull(d.value)}</span>
+            </div>
+            <div className="h-2 rounded-full bg-navy-100 dark:bg-navy-800 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-[width] duration-500"
+                style={{ width: `${Math.max((Math.abs(d.value) / max) * 100, 1.5)}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The executed SQL, tucked behind a collapsible toggle so it doesn't dominate
+// the response (shown only when the user wants to inspect the query).
+function SqlBlock({ sql }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border border-navy-100 dark:border-navy-800 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-medium text-navy-500 dark:text-navy-400 hover:bg-navy-50 dark:hover:bg-navy-900/50 transition-colors"
+      >
+        <span className="flex items-center gap-1.5"><Code2 size={13} /> View SQL query</span>
+        <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <pre className="text-[11px] bg-navy-50 dark:bg-navy-900 p-3 overflow-x-auto whitespace-pre-wrap break-words text-navy-600 dark:text-navy-300 font-mono border-t border-navy-100 dark:border-navy-800">
+          {sql}
+        </pre>
+      )}
+    </div>
+  );
+}
+
+// Render an AI reply: a natural-language answer, headline stats, a chart, the
+// data table, and the SQL (collapsed).
 function AiAnswer({ data }) {
   if (typeof data === 'string') return <span className="whitespace-pre-wrap">{data}</span>;
   const text = data?.answer ?? data?.response ?? data?.message ?? data?.text;
   const rows = Array.isArray(data?.data) ? data.data : null;
+  const analysis = rows && rows.length ? analyze(rows) : null;
   const hasStructured = text != null || data?.sql || rows;
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       {text != null && (
-        <div className="whitespace-pre-wrap">{typeof text === 'string' ? text : JSON.stringify(text)}</div>
+        <div className="whitespace-pre-wrap text-[13px]">{typeof text === 'string' ? text : JSON.stringify(text)}</div>
       )}
-      {data?.sql && (
-        <pre className="text-[11px] bg-navy-100/70 dark:bg-navy-900 rounded-md p-2.5 overflow-x-auto whitespace-pre-wrap break-words text-navy-600 dark:text-navy-300 font-mono">
-          {data.sql}
-        </pre>
-      )}
+      {analysis && <Insights rows={rows} analysis={analysis} />}
+      {analysis && <InsightChart rows={rows} analysis={analysis} />}
       {rows && <ResultTable rows={rows} />}
+      {data?.sql && <SqlBlock sql={data.sql} />}
       {!hasStructured && (
         <pre className="text-[11px] overflow-x-auto whitespace-pre-wrap break-words">{JSON.stringify(data, null, 2)}</pre>
       )}

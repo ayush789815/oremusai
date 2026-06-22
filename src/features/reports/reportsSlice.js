@@ -52,18 +52,44 @@ export const fetchReportForExport = createAsyncThunk(
   },
 );
 
+// Favourites persist in localStorage so the user's stars survive a refresh.
+// Shape: { [provider]: { [reportName]: true } }. No report is favourited by
+// default — the map is empty until the user toggles a star.
+const FAVORITES_KEY = 'oremus.reports.favorites';
+
+function loadFavorites() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(FAVORITES_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function persistFavorites(byProvider) {
+  if (typeof window === 'undefined') return;
+  try {
+    const out = {};
+    for (const id of Object.keys(byProvider)) out[id] = byProvider[id].favorites || {};
+    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(out));
+  } catch {
+    /* ignore quota / privacy-mode errors */
+  }
+}
+
 // Provider-scoped browse state factory (active category, search, favourites).
 function makePerProviderState() {
+  const saved = loadFavorites();
   const acc = {};
   for (const id of Object.keys(CATALOGS)) {
-    const favs = CATALOGS[id].allReports.reduce((m, r) => {
-      if (r.fav) m[r.name] = true;
-      return m;
-    }, {});
+    // Favourites are entirely user-driven (toggled via the star on each report
+    // card) and rehydrated from localStorage so they survive a refresh.
     acc[id] = {
       activeCategory: 'all',
       query: '',
-      favorites: favs,
+      favorites: saved[id] && typeof saved[id] === 'object' ? { ...saved[id] } : {},
       showFavoritesOnly: false,
     };
   }
@@ -155,6 +181,7 @@ const slice = createSlice({
       const name = a.payload;
       if (favs[name]) delete favs[name];
       else favs[name] = true;
+      persistFavorites(s.byProvider);
     },
     setShowFavoritesOnly(s, a) { s.byProvider[s.provider].showFavoritesOnly = a.payload; },
 
