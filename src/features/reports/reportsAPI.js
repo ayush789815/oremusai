@@ -30,6 +30,8 @@ function buildParams(filters = {}) {
   if (filters?.from || filters?.from_date) out.from_date = filters.from || filters.from_date;
   if (filters?.to   || filters?.to_date)   out.to_date   = filters.to   || filters.to_date;
   if (filters?.basis || filters?.accounting_basis) out.accounting_basis = filters.basis || filters.accounting_basis;
+  // Show rows with zero balances (Executive Summary): emit real zeros, not "-".
+  if (filters?.includeZero) out.include_zero = '1';
   if (filters?.refresh) out.refresh = '1';
   // Display columns by (interval): only send when it actually splits columns.
   if (filters?.interval && filters.interval !== 'none' && filters.interval !== 'total') {

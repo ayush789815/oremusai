@@ -5,20 +5,18 @@
 // Executive Summary (Date range / Compare with / Filter / More / Update, and a
 // sectioned table with This-month / Last-month / Variance columns).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  ArrowLeft, Star, X, ChevronDown, Filter as FilterIcon, MoreHorizontal,
-  RefreshCw, Printer, Mail, ArrowUp, ArrowDown,
+  ArrowLeft, Star, X, ChevronDown,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Popover from '../ui/Popover.jsx';
-import ExportMenu from './ExportMenu.jsx';
-import SendReportModal from './SendReportModal.jsx';
 import ReportSkeleton from './ReportSkeleton.jsx';
 import {
   selectOpenReport, selectReportData, selectReportStatus,
   selectFilters, selectCompare, selectFavorites,
-  closeReport, setFilter, setCompare, toggleFavorite, loadReportData, saveAsCustom,
+  closeReport, setFilter, setCompare, toggleFavorite, loadReportData,
 } from '../../features/reports/reportsSlice.js';
 import { selectActiveClient } from '../../features/clients/clientsSlice.js';
 import { resolvePresetRange } from '../../features/reports/data/dateRanges.js';
@@ -41,8 +39,6 @@ const PERIOD_LABELS = Object.fromEntries(XERO_PERIODS);
 
 const fieldCls =
   'h-9 px-3 rounded-md bg-white dark:bg-navy-900 border border-navy-300 dark:border-navy-700 text-[13px] text-navy-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20';
-
-const monthLabel = (d) => d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
 
 // Format a value for its unit (currency uses parentheses for negatives, Xero-style).
 function fmtCell(v, unit, sym) {
@@ -76,9 +72,6 @@ export default function ExecutiveSummaryViewer() {
   const compare = useSelector(selectCompare);
   const favorites = useSelector(selectFavorites);
 
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [compact, setCompact] = useState(true);
-
   const favorited = !!favorites[report.name];
   const loading = status === 'loading';
   const sym = currencySymbol(data?.currency);
@@ -90,8 +83,6 @@ export default function ExecutiveSummaryViewer() {
   const fromVal = filters.customFrom || range.from_date;
   const toVal = filters.customTo || range.to_date;
   const endDate = toVal ? new Date(toVal) : new Date();
-  const curLabel = monthLabel(endDate);
-  const prvLabel = monthLabel(new Date(endDate.getFullYear(), endDate.getMonth() - 1, 1));
   const endedText = endDate.toLocaleString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const compareMonths = Math.max(1, (compare.count || 2) - 1);
@@ -106,7 +97,10 @@ export default function ExecutiveSummaryViewer() {
   }, []);
 
   const rows = data?.rows || [];
-  const rowPad = compact ? 'py-1' : 'py-2';
+  // Render whatever value columns the backend returned (current period plus any
+  // comparison periods, and a Variance column when there's a single comparison).
+  const valueCols = (data?.columns || []).filter((c) => c.key !== 'label');
+  const rowPad = 'py-1';
 
   return (
     <>
@@ -207,61 +201,33 @@ export default function ExecutiveSummaryViewer() {
           </div>
 
           <div className="shrink-0">
-            <Popover
-              align="start"
-              width={240}
-              trigger={(
-                <button type="button" className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold">
-                  <FilterIcon size={14} /> Filter
-                </button>
-              )}
-            >
-              <div className="space-y-3 text-[12.5px] text-navy-700 dark:text-navy-200">
-                <div>
-                  <div className="text-[11px] uppercase tracking-wider font-semibold text-navy-400 mb-1.5">Accounting basis</div>
-                  <div className="inline-flex h-8 rounded-md border border-navy-300 dark:border-navy-700 overflow-hidden">
-                    {[['accrual', 'Accrual'], ['cash', 'Cash']].map(([v, l]) => {
-                      const active = (filters.basis || 'accrual') === v;
-                      return (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => dispatch(setFilter({ basis: v }))}
-                          className={cn('px-3 text-[12.5px] font-semibold', active ? 'bg-navy-800 text-white dark:bg-white dark:text-navy-900' : 'bg-white dark:bg-navy-900 text-navy-600 dark:text-navy-300')}
-                        >
-                          {l}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" checked={!!filters.includeZero} onChange={(e) => dispatch(setFilter({ includeZero: e.target.checked }))} className="accent-sky-600" />
-                  Show rows with zero balances
-                </label>
-              </div>
-            </Popover>
+            <div className="text-[11px] text-navy-500 dark:text-navy-400 mb-1">Accounting basis</div>
+            <div className="inline-flex h-9 rounded-md border border-navy-300 dark:border-navy-700 overflow-hidden">
+              {[['accrual', 'Accrual'], ['cash', 'Cash']].map(([v, l]) => {
+                const active = (filters.basis || 'accrual') === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => dispatch(setFilter({ basis: v }))}
+                    className={cn('px-3 text-[12.5px] font-semibold', active ? 'bg-navy-800 text-white dark:bg-white dark:text-navy-900' : 'bg-white dark:bg-navy-900 text-navy-600 dark:text-navy-300')}
+                  >
+                    {l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <div className="text-[11px] text-navy-500 dark:text-navy-400 mb-1">&nbsp;</div>
+            <label className="inline-flex items-center gap-2 h-9 text-[12.5px] text-navy-700 dark:text-navy-200 cursor-pointer">
+              <input type="checkbox" checked={!!filters.includeZero} onChange={(e) => dispatch(setFilter({ includeZero: e.target.checked }))} className="accent-sky-600" />
+              Show rows with zero balances
+            </label>
           </div>
 
           <div className="grow" />
-
-          <Popover
-            align="end"
-            width={200}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold shrink-0">
-                <MoreHorizontal size={16} /> More
-              </button>
-            )}
-          >
-            {({ close }) => (
-              <div className="flex flex-col text-[13px] text-navy-700 dark:text-navy-200">
-                <button type="button" onClick={() => { runReport(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><RefreshCw size={14} /> Refresh</button>
-                <button type="button" onClick={() => { window.print(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Printer size={14} /> Print</button>
-                <button type="button" onClick={() => { setEmailOpen(true); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Mail size={14} /> Email</button>
-              </div>
-            )}
-          </Popover>
 
           <button
             type="button"
@@ -291,9 +257,9 @@ export default function ExecutiveSummaryViewer() {
                 <thead>
                   <tr className="text-[12px] text-navy-500 dark:text-navy-400 border-b border-navy-200 dark:border-navy-700">
                     <th className="text-left font-semibold py-2" />
-                    <th className="text-right font-semibold py-2 px-3 w-[150px]">{curLabel}</th>
-                    <th className="text-right font-semibold py-2 px-3 w-[150px]">{prvLabel}</th>
-                    <th className="text-right font-semibold py-2 pl-3 w-[130px]">Variance</th>
+                    {valueCols.map((c) => (
+                      <th key={c.key} className="text-right font-semibold py-2 px-3 w-[150px]">{c.label}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -301,7 +267,7 @@ export default function ExecutiveSummaryViewer() {
                     if (r.isHeader) {
                       return (
                         <tr key={i}>
-                          <td colSpan={4} className="pt-5 pb-1 text-[14px] font-bold text-navy-900 dark:text-white">{r.label}</td>
+                          <td colSpan={valueCols.length + 1} className="pt-5 pb-1 text-[14px] font-bold text-navy-900 dark:text-white">{r.label}</td>
                         </tr>
                       );
                     }
@@ -309,9 +275,13 @@ export default function ExecutiveSummaryViewer() {
                     return (
                       <tr key={i} className={cn('border-b border-navy-100 dark:border-navy-800', emph && 'font-semibold')}>
                         <td className={cn(rowPad, 'pr-4 text-navy-700 dark:text-navy-200', emph ? 'pl-3' : 'pl-5')}>{r.label}</td>
-                        <td className={cn(rowPad, 'px-3 text-right tabular-nums text-navy-800 dark:text-navy-100')}>{fmtCell(r.cells.cur, r.unit, sym)}</td>
-                        <td className={cn(rowPad, 'px-3 text-right tabular-nums text-navy-800 dark:text-navy-100')}>{fmtCell(r.cells.prv, r.unit, sym)}</td>
-                        <td className={cn(rowPad, 'pl-3 text-right tabular-nums')}><VarCell v={r.cells.var} unit={r.unit} sym={sym} /></td>
+                        {valueCols.map((c) => (
+                          <td key={c.key} className={cn(rowPad, 'px-3 text-right tabular-nums text-navy-800 dark:text-navy-100')}>
+                            {c.variance
+                              ? <VarCell v={r.cells?.[c.key]} unit={r.unit} sym={sym} />
+                              : fmtCell(r.cells?.[c.key], r.unit, sym)}
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}
@@ -321,47 +291,6 @@ export default function ExecutiveSummaryViewer() {
           </div>
         </div>
       </div>
-
-      {/* Footer (Xero: Compact view · Save as custom · Export) */}
-      <div className="border-t border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-        <label className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-navy-700 dark:text-navy-200 cursor-pointer">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={compact}
-            onClick={() => setCompact((c) => !c)}
-            className={cn('relative h-5 w-9 rounded-full transition', compact ? 'bg-sky-600' : 'bg-navy-300 dark:bg-navy-700')}
-          >
-            <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white transition', compact ? 'left-[18px]' : 'left-0.5')} />
-          </button>
-          Compact view
-        </label>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => dispatch(saveAsCustom({ baseName: report.name, baseCategory: report.category, provider: report.provider }))}
-            className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 text-[12.5px] font-semibold"
-          >
-            Save as custom
-          </button>
-          <ExportMenu
-            meta={{ company: client?.name, basis: filters.basis === 'cash' ? 'Cash basis' : 'Accrual basis', from: fromVal, to: toVal }}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ background: XERO_BLUE }}>
-                Export <ChevronDown size={14} />
-              </button>
-            )}
-          />
-        </div>
-      </div>
-
-      <SendReportModal
-        open={emailOpen}
-        onClose={() => setEmailOpen(false)}
-        reportName={report.name}
-        data={data}
-        meta={{ company: client?.name, basis: filters.basis === 'cash' ? 'Cash basis' : 'Accrual basis', from: fromVal, to: toVal }}
-      />
     </>
   );
 }

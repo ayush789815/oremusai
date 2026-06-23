@@ -9,17 +9,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  ArrowLeft, Star, X, ChevronDown, MoreHorizontal,
-  RefreshCw, Printer, Mail, ArrowUp, ArrowDown, Info,
+  ArrowLeft, Star, X, ChevronDown,
+  ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Popover from '../ui/Popover.jsx';
-import ExportMenu from './ExportMenu.jsx';
-import SendReportModal from './SendReportModal.jsx';
 import ReportSkeleton from './ReportSkeleton.jsx';
 import {
   selectOpenReport, selectReportData, selectReportStatus,
   selectFilters, selectFavorites,
-  closeReport, setFilter, toggleFavorite, loadReportData, saveAsCustom,
+  closeReport, setFilter, toggleFavorite, loadReportData,
 } from '../../features/reports/reportsSlice.js';
 import { selectActiveClient } from '../../features/clients/clientsSlice.js';
 import { resolvePresetRange } from '../../features/reports/data/dateRanges.js';
@@ -87,8 +85,6 @@ export default function BudgetVarianceViewer() {
   const filters = useSelector(selectFilters);
   const favorites = useSelector(selectFavorites);
 
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [compact, setCompact] = useState(true);
   const [budget, setBudget] = useState('Overall Budget');
   const [currency, setCurrency] = useState('INR');
 
@@ -152,7 +148,7 @@ export default function BudgetVarianceViewer() {
   }, []);
 
   const rows = data?.rows || [];
-  const rowPad = compact ? 'py-1' : 'py-2';
+  const rowPad = 'py-1';
 
   const renderCell = (val, type) => {
     if (type === 'var') return <VarCell v={val} sym={sym} />;
@@ -266,40 +262,6 @@ export default function BudgetVarianceViewer() {
             </select>
           </div>
 
-          {/* Info */}
-          <Popover
-            align="center"
-            width={260}
-            trigger={(
-              <button type="button" className="h-9 w-9 grid place-items-center rounded-md border border-navy-300 dark:border-navy-700 text-navy-500 hover:bg-navy-50 dark:hover:bg-navy-800 shrink-0" aria-label="About this report">
-                <Info size={16} />
-              </button>
-            )}
-          >
-            <div className="text-[12.5px] text-navy-700 dark:text-navy-200">
-              Compares actuals against the selected budget for the period and year-to-date, showing the variance and variance percentage per account.
-            </div>
-          </Popover>
-
-          {/* More */}
-          <Popover
-            align="end"
-            width={200}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold shrink-0">
-                <MoreHorizontal size={16} /> More
-              </button>
-            )}
-          >
-            {({ close }) => (
-              <div className="flex flex-col text-[13px] text-navy-700 dark:text-navy-200">
-                <button type="button" onClick={() => { runReport(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><RefreshCw size={14} /> Refresh</button>
-                <button type="button" onClick={() => { window.print(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Printer size={14} /> Print</button>
-                <button type="button" onClick={() => { setEmailOpen(true); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Mail size={14} /> Email</button>
-              </div>
-            )}
-          </Popover>
-
           <button
             type="button"
             onClick={runReport}
@@ -384,47 +346,6 @@ export default function BudgetVarianceViewer() {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <div className="border-t border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-        <label className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-navy-700 dark:text-navy-200 cursor-pointer">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={compact}
-            onClick={() => setCompact((c) => !c)}
-            className={cn('relative h-5 w-9 rounded-full transition', compact ? 'bg-sky-600' : 'bg-navy-300 dark:bg-navy-700')}
-          >
-            <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white transition', compact ? 'left-[18px]' : 'left-0.5')} />
-          </button>
-          Compact view
-        </label>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => dispatch(saveAsCustom({ baseName: report.name, baseCategory: report.category, provider: report.provider }))}
-            className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 text-[12.5px] font-semibold"
-          >
-            Save as custom
-          </button>
-          <ExportMenu
-            meta={{ company: client?.name, basis: budgetName, from: fromVal, to: toVal }}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ background: XERO_BLUE }}>
-                Export <ChevronDown size={14} />
-              </button>
-            )}
-          />
-        </div>
-      </div>
-
-      <SendReportModal
-        open={emailOpen}
-        onClose={() => setEmailOpen(false)}
-        reportName={report.name}
-        data={data}
-        meta={{ company: client?.name, basis: budgetName, from: fromVal, to: toVal }}
-      />
     </>
   );
 }

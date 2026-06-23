@@ -6,20 +6,17 @@
 // Statement of Cash Flows (Date range / Compare with / More / Update, and a
 // single period column with Net Cash Flows + Cash and Cash Equivalents).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  ArrowLeft, Star, X, ChevronDown, MoreHorizontal,
-  RefreshCw, Printer, Mail,
+  ArrowLeft, Star, X, ChevronDown,
 } from 'lucide-react';
 import Popover from '../ui/Popover.jsx';
-import ExportMenu from './ExportMenu.jsx';
-import SendReportModal from './SendReportModal.jsx';
 import ReportSkeleton from './ReportSkeleton.jsx';
 import {
   selectOpenReport, selectReportData, selectReportStatus,
   selectFilters, selectFavorites,
-  closeReport, setFilter, toggleFavorite, loadReportData, saveAsCustom,
+  closeReport, setFilter, toggleFavorite, loadReportData,
 } from '../../features/reports/reportsSlice.js';
 import { selectActiveClient } from '../../features/clients/clientsSlice.js';
 import { resolvePresetRange } from '../../features/reports/data/dateRanges.js';
@@ -59,8 +56,6 @@ export default function CashFlowsDirectViewer() {
   const filters = useSelector(selectFilters);
   const favorites = useSelector(selectFavorites);
 
-  const [emailOpen, setEmailOpen] = useState(false);
-  const [compact, setCompact] = useState(true);
 
   const favorited = !!favorites[report.name];
   const loading = status === 'loading';
@@ -84,7 +79,7 @@ export default function CashFlowsDirectViewer() {
   }, []);
 
   const rows = data?.rows || [];
-  const rowPad = compact ? 'py-1.5' : 'py-2.5';
+  const rowPad = 'py-1.5';
 
   return (
     <>
@@ -180,24 +175,6 @@ export default function CashFlowsDirectViewer() {
 
           <div className="grow" />
 
-          <Popover
-            align="end"
-            width={200}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 inline-flex items-center gap-1.5 text-[12.5px] font-semibold shrink-0">
-                <MoreHorizontal size={16} /> More
-              </button>
-            )}
-          >
-            {({ close }) => (
-              <div className="flex flex-col text-[13px] text-navy-700 dark:text-navy-200">
-                <button type="button" onClick={() => { runReport(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><RefreshCw size={14} /> Refresh</button>
-                <button type="button" onClick={() => { window.print(); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Printer size={14} /> Print</button>
-                <button type="button" onClick={() => { setEmailOpen(true); close(); }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-navy-50 dark:hover:bg-navy-800 text-left"><Mail size={14} /> Email</button>
-              </div>
-            )}
-          </Popover>
-
           <button
             type="button"
             onClick={runReport}
@@ -251,47 +228,6 @@ export default function CashFlowsDirectViewer() {
           </div>
         </div>
       </div>
-
-      {/* Footer (Xero: Compact view · Save as custom · Export) */}
-      <div className="border-t border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
-        <label className="inline-flex items-center gap-2 text-[12.5px] font-semibold text-navy-700 dark:text-navy-200 cursor-pointer">
-          <button
-            type="button"
-            role="switch"
-            aria-checked={compact}
-            onClick={() => setCompact((c) => !c)}
-            className={cn('relative h-5 w-9 rounded-full transition', compact ? 'bg-sky-600' : 'bg-navy-300 dark:bg-navy-700')}
-          >
-            <span className={cn('absolute top-0.5 h-4 w-4 rounded-full bg-white transition', compact ? 'left-[18px]' : 'left-0.5')} />
-          </button>
-          Compact view
-        </label>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => dispatch(saveAsCustom({ baseName: report.name, baseCategory: report.category, provider: report.provider }))}
-            className="h-9 px-3 rounded-md border border-navy-300 dark:border-navy-700 text-navy-700 dark:text-navy-200 hover:bg-navy-50 dark:hover:bg-navy-800 text-[12.5px] font-semibold"
-          >
-            Save as custom
-          </button>
-          <ExportMenu
-            meta={{ company: client?.name, from: fromVal, to: toVal }}
-            trigger={(
-              <button type="button" className="h-9 px-3 rounded-md text-white text-[12.5px] font-semibold inline-flex items-center gap-1.5" style={{ background: XERO_BLUE }}>
-                Export <ChevronDown size={14} />
-              </button>
-            )}
-          />
-        </div>
-      </div>
-
-      <SendReportModal
-        open={emailOpen}
-        onClose={() => setEmailOpen(false)}
-        reportName={report.name}
-        data={data}
-        meta={{ company: client?.name, from: fromVal, to: toVal }}
-      />
     </>
   );
 }

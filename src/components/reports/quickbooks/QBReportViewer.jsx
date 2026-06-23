@@ -108,21 +108,30 @@ const DISPLAY_COLUMNS_BY = [
   ['vendors',     'Vendor'],
 ];
 
-// QBO "Compare to" — grouped exactly like QuickBooks (Time Periods +
-// Calculations); "None" is the standalone default rendered before the groups.
+// Which "Display columns by" options each provider's report engine can actually
+// honor, so the dropdown never offers a choice that silently does nothing:
+//  - Zoho is computed from the local GL ledger → time splits only (incl. days/weeks).
+//  - QuickBooks supports every QBO summarize_column_by grouping natively.
+//  - Xero's report API only exposes MONTH/QUARTER/YEAR timeframes.
+const DISPLAY_BY_PROVIDER = {
+  zoho:       ['total', 'days', 'weeks', 'months', 'quarters', 'years'],
+  quickbooks: ['total', 'days', 'weeks', 'months', 'quarters', 'years', 'customers', 'employees', 'products', 'vendors'],
+  xero:       ['total', 'months', 'quarters', 'years'],
+};
+
+function displayColumnsFor(provider) {
+  const allow = DISPLAY_BY_PROVIDER[provider];
+  return allow ? DISPLAY_COLUMNS_BY.filter(([v]) => allow.includes(v)) : DISPLAY_COLUMNS_BY;
+}
+
+// QBO "Compare to" — only the period comparisons the report pipeline actually
+// produces (prior year / prior period). The QBO "% of …" calculations and
+// YTD/PY-YTD/Custom comparisons aren't supported by the provider report
+// engines here, so they're omitted rather than shown as dead options.
 const COMPARE_GROUPS = [
   ['Time Periods', [
     ['previous-year',   'Previous year (PY)'],
     ['previous-period', 'Previous Period (PP)'],
-    ['ytd',             'Year-to-date (YTD)'],
-    ['py-ytd',          'Previous year-to-date (PY YTD)'],
-    ['custom-period',   'Custom period (CP)'],
-  ]],
-  ['Calculations', [
-    ['pct-row',     '% of Row'],
-    ['pct-column',  '% of Column'],
-    ['pct-expense', '% of Expense'],
-    ['pct-income',  '% of Income'],
   ]],
 ];
 
@@ -295,7 +304,8 @@ function QBTopBar({ report, favorited, onToggleFavorite, onClose }) {
 // ----------------------------------------------------------------------------
 // QBO-style controls bar (period · dates · method · display · compare · actions)
 
-function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onCustomize, onSaveCustom, savedToast, onRefresh, onEmail, exportMeta }) {
+function QBControlsBar({ provider, filters, compare, onSetFilter, onSetCompare, onRun, onCustomize, onSaveCustom, savedToast, onRefresh, onEmail, exportMeta }) {
+  const displayOptions = displayColumnsFor(provider);
   return (
     <div className="border-b border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-950 px-4 sm:px-6 py-3">
       <div className="flex flex-wrap items-end gap-x-3 gap-y-3">
@@ -338,7 +348,7 @@ function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onC
                 <button
                   key={v}
                   type="button"
-                  onClick={() => onSetFilter({ basis: v })}
+                  onClick={() => { onSetFilter({ basis: v }); onRun(); }}
                   className={cn(
                     'px-4 text-[13px] font-semibold transition',
                     active
@@ -356,17 +366,17 @@ function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onC
         <FilterField label="Display columns by" className="w-[150px]">
           <select
             value={filters.interval}
-            onChange={(e) => onSetFilter({ interval: e.target.value })}
+            onChange={(e) => { onSetFilter({ interval: e.target.value }); onRun(); }}
             className={fieldCls}
           >
-            {DISPLAY_COLUMNS_BY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            {displayOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </FilterField>
 
         <FilterField label="Compare to" className="w-[170px]">
           <select
             value={compare.with}
-            onChange={(e) => onSetCompare(compareSelection(e.target.value, compare.count))}
+            onChange={(e) => { onSetCompare(compareSelection(e.target.value, compare.count)); onRun(); }}
             className={fieldCls}
           >
             <CompareOptions />
@@ -419,8 +429,9 @@ function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onC
 // ----------------------------------------------------------------------------
 // QBO Customize sidebar (slides in from the right)
 
-function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetCompare }) {
+function CustomizeSidebar({ open, onClose, provider, filters, compare, onSetFilter, onSetCompare }) {
   if (!open) return null;
+  const displayOptions = displayColumnsFor(provider);
   return (
     <aside className="hidden xl:flex flex-col w-[320px] shrink-0 border-l border-navy-200 dark:border-navy-800 bg-white dark:bg-navy-900 overflow-y-auto scroll-thin">
       <header className="px-5 py-3 border-b border-navy-100 dark:border-navy-800 flex items-center justify-between">
@@ -451,7 +462,7 @@ function CustomizeSidebar({ open, onClose, filters, compare, onSetFilter, onSetC
           <div className="text-[11px] uppercase tracking-wider font-semibold text-navy-400 mb-2">Rows / Columns</div>
           <FilterField label="Display columns by">
             <select value={filters.interval} onChange={(e) => onSetFilter({ interval: e.target.value })} className={fieldCls}>
-              {DISPLAY_COLUMNS_BY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {displayOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </FilterField>
           <FilterField label="Show rows">
@@ -683,6 +694,7 @@ export default function QBReportViewer() {
       />
 
       <QBControlsBar
+        provider={report.provider}
         filters={filters}
         compare={compare}
         onSetFilter={(patch) => dispatch(setFilter(patch))}
@@ -781,6 +793,7 @@ export default function QBReportViewer() {
         <CustomizeSidebar
           open={customizeOpen}
           onClose={() => setCustomizeOpen(false)}
+          provider={report.provider}
           filters={filters}
           compare={compare}
           onSetFilter={(patch) => dispatch(setFilter(patch))}
