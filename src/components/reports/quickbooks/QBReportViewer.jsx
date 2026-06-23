@@ -302,7 +302,12 @@ function QBControlsBar({ filters, compare, onSetFilter, onSetCompare, onRun, onC
         <FilterField label="Report period" className="w-[160px]">
           <select
             value={filters.dateRange}
-            onChange={(e) => onSetFilter({ dateRange: e.target.value })}
+            onChange={(e) => {
+              // Picking a preset applies immediately (no separate "Run report"
+              // click needed) — matches the custom-date and dashboard behavior.
+              onSetFilter({ dateRange: e.target.value });
+              if (e.target.value !== 'custom') onRun();
+            }}
             className={fieldCls}
           >
             {REPORT_PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -633,6 +638,22 @@ export default function QBReportViewer() {
     return periodLabel(filters.dateRange, filters.customFrom, filters.customTo);
   }, [report.name, filters.dateRange, filters.customFrom, filters.customTo]);
 
+  // Spelled-out actual date range (e.g. "June 1-June 23, 2026") shown UNDER the
+  // period label so a named preset like "This month" also reveals its concrete
+  // dates. Prefers the backend-resolved dates (data.meta) for exactness, else the
+  // resolved preset range. Skipped for the special reports whose periodText is
+  // already a date or range (As of / range-title / since / no-period).
+  const dateRangeText = useMemo(() => {
+    if (NO_PERIOD_REPORTS.has(report.name)) return '';
+    if (AS_OF_REPORTS.has(report.name)) return '';
+    if (RANGE_TITLE_REPORTS.has(report.name)) return '';
+    if (SINCE_REPORTS.has(report.name)) return '';
+    const r = resolvePresetRange(filters.dateRange, { from: filters.customFrom, to: filters.customTo });
+    const from = data?.meta?.from || filters.customFrom || r.from_date;
+    const to = data?.meta?.to || filters.customTo || r.to_date;
+    return rangeTitle(from, to);
+  }, [report.name, filters.dateRange, filters.customFrom, filters.customTo, data?.meta?.from, data?.meta?.to]);
+
   const basisText = filters.basis === 'cash' ? 'Cash basis' : 'Accrual basis';
   const nowText = useMemo(
     () => new Date().toLocaleString(undefined, {
@@ -714,6 +735,9 @@ export default function QBReportViewer() {
                 </div>
                 <div className="text-[14px] text-navy-700 dark:text-navy-200 mt-1">{report.name}</div>
                 <div className="text-[12.5px] text-navy-500 mt-0.5">{periodText}</div>
+                {dateRangeText && dateRangeText !== periodText && (
+                  <div className="text-[11.5px] text-navy-400 mt-0.5">{dateRangeText}</div>
+                )}
               </div>
 
               {/* Report body */}

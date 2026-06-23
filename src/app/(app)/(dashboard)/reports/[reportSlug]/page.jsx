@@ -4,7 +4,7 @@ import Reports from '@/views/Reports.jsx';
 
 export const metadata = { title: 'Reports' };
 
-export default function ReportsProviderPage() {
+export default function ReportSlugPage() {
   return (
     <RouteGuard permission="Reports">
       <ErrorBoundary>

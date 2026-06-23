@@ -46,6 +46,7 @@ export const loadOrganizations = createAsyncThunk(
 export const switchOrganization = createAsyncThunk(
   'orgs/switch',
   async (orgId, { rejectWithValue }) => {
+    if (!orgId) return rejectWithValue('orgId is required');
     try {
       persistSelectedOrgId(orgId);
       await axiosClient.post('/auth/zoho/select-org', { orgId });
@@ -90,8 +91,12 @@ const orgsSlice = createSlice({
         if (!sel && a.payload.organizations.length > 0) {
           sel = String(a.payload.organizations[0].org_id);
         }
+        const prevSel = s.selectedId;
         s.selectedId = sel;
         persistSelectedOrgId(sel);
+        // If the auto-resolved org differs from what was previously selected,
+        // flag it so the dashboard knows to refetch.
+        s.orgJustResolved = sel !== prevSel;
       })
       .addCase(loadOrganizations.rejected,  (s, a) => { s.status = 'failed'; s.error = a.payload; })
 

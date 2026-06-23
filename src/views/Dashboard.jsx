@@ -48,6 +48,7 @@ import {
   setPeriod, setCustomRange, setBasis, setCustomer,
 } from '../features/filters/filtersSlice.js';
 import { selectZohoConnected } from '../features/zoho/zohoSlice.js';
+import { selectOrgSelectedId } from '../features/orgs/orgsSlice.js';
 import { cn } from '../utils/classNames.js';
 import { setActiveCurrency, fmt } from '../utils/fmt.js';
 
@@ -96,9 +97,9 @@ function PeriodSelector() {
   }, [open]);
 
   const QUICK = [
-    { id: '30d', label: '30d' },
-    { id: '90d', label: 'Qtr' },
-    { id: '1y',  label: '1Y'  },
+    { id: 'this_month',   label: 'Month' },
+    { id: 'this_quarter', label: 'Qtr'   },
+    { id: 'this_year',    label: 'Year'  },
   ];
   const isQuick = QUICK.map(p => p.id).includes(period);
 
@@ -256,6 +257,7 @@ export default function Dashboard() {
   const basis         = useSelector(selectBasis);
   const customer      = useSelector(selectCustomer);
   const currency      = useSelector(selectCurrency);
+  const selectedOrgId = useSelector(selectOrgSelectedId);
 
   const [activeSection, setActiveSection] = useState('overview');
   const [kpiModal, setKpiModal]           = useState(null); // kpi id or null
@@ -270,7 +272,7 @@ export default function Dashboard() {
   useEffect(() => {
     dispatch(loadDashboard({ clientId: client?.id, from: dateRange.from, to: dateRange.to, basis }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dispatch, client?.id, period, customRange.from, customRange.to, basis]);
+  }, [dispatch, client?.id, period, customRange.from, customRange.to, selectedOrgId, basis]);
 
   // Show when the connected accounting data was last synced (sync itself now
   // lives in Settings). Refetched whenever the active client changes.

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSelectedOrgId } from '../features/orgs/orgsSlice.js';
+import { getViewAsClientId } from '../features/viewAs/viewAsSlice.js';
 
 // In development Vite proxies /api → http://localhost:5001/api (no CORS).
 // In production set VITE_API_URL to the deployed backend origin.
@@ -18,8 +19,15 @@ axiosClient.interceptors.request.use((config) => {
     if (token) config.headers.Authorization = `Bearer ${token}`;
   } catch {}
   try {
-    const orgId = getSelectedOrgId();
-    if (orgId) config.headers['X-Org-Id'] = orgId;
+    // Admin "view as client" takes precedence — the backend resolves the
+    // client's own org, so the admin's X-Org-Id must NOT be sent alongside it.
+    const viewAsClientId = getViewAsClientId();
+    if (viewAsClientId) {
+      config.headers['X-Client-Id'] = viewAsClientId;
+    } else {
+      const orgId = getSelectedOrgId();
+      if (orgId) config.headers['X-Org-Id'] = orgId;
+    }
   } catch {}
   return config;
 });

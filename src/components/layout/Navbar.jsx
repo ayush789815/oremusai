@@ -6,6 +6,7 @@ import { toggleTheme, setMobileSidebar } from '../../features/ui/uiSlice.js';
 import { selectUser } from '../../features/auth/authSlice.js';
 import ProfileMenu from './ProfileMenu.jsx';
 import OrgSwitcher from './OrgSwitcher.jsx';
+import ClientSwitcher from './ClientSwitcher.jsx';
 import NotificationsBell from './NotificationsBell.jsx';
 
 export default function Navbar() {
@@ -25,6 +26,9 @@ export default function Navbar() {
       >
         <Menu size={17} />
       </button>
+
+      {/* Admin "view as client" switcher (admins only) */}
+      <ClientSwitcher />
 
       {/* Organization switcher (multi-org Zoho accounts only) */}
       <OrgSwitcher />

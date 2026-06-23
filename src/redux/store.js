@@ -10,6 +10,7 @@ import xeroReducer from '../features/xero/xeroSlice.js';
 import reportsReducer from '../features/reports/reportsSlice.js';
 import orgsReducer from '../features/orgs/orgsSlice.js';
 import notificationsReducer from '../features/notifications/notificationsSlice.js';
+import viewAsReducer from '../features/viewAs/viewAsSlice.js';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +25,7 @@ export const store = configureStore({
     reports: reportsReducer,
     orgs: orgsReducer,
     notifications: notificationsReducer,
+    viewAs: viewAsReducer,
   },
 });
 

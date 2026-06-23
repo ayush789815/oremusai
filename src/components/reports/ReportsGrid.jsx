@@ -1,18 +1,21 @@
 'use client';
 
 import { useDispatch, useSelector } from 'react-redux';
+import { useRouter } from 'next/navigation';
 import { FileSearch } from 'lucide-react';
 import EmptyState from '../ui/EmptyState.jsx';
 import ReportCard from './ReportCard.jsx';
 import Button from '../ui/Button.jsx';
 import {
   selectVisibleReports, selectFavorites,
-  toggleFavorite, openReport,
+  toggleFavorite,
   selectActiveCategory, setActiveCategory,
 } from '../../features/reports/reportsSlice.js';
+import { slugifyReport } from '../../features/reports/data/slugs.js';
 
 export default function ReportsGrid() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const reports = useSelector(selectVisibleReports);
   const favorites = useSelector(selectFavorites);
   const activeCategory = useSelector(selectActiveCategory);
@@ -43,7 +46,7 @@ export default function ReportsGrid() {
             report={r}
             isFavorite={!!favorites[r.name]}
             onToggleFavorite={(name) => dispatch(toggleFavorite(name))}
-            onOpen={(rep) => dispatch(openReport({ name: rep.name, category: rep.category }))}
+            onOpen={(rep) => router.push(`/reports/${slugifyReport(rep.name)}`)}
           />
         ))}
       </div>
