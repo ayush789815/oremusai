@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Provider, useSelector } from 'react-redux';
 import { store } from '@/redux/store.js';
+import Toaster from '@/components/ui/Toaster.jsx';
 
 // Applies the persisted theme to <html> exactly like the original App.jsx effect.
 function ThemeSync() {
@@ -37,6 +38,7 @@ export default function Providers({ children }) {
     <Provider store={store}>
       <ThemeSync />
       {mounted ? children : null}
+      <Toaster />
     </Provider>
   );
 }

@@ -17,6 +17,9 @@ export default function ReportCategorySidebar() {
       className={cn(
         'bg-white dark:bg-navy-900 border border-navy-200/70 dark:border-navy-800 rounded-2xl',
         'p-2 h-fit',
+        // Desktop: pin the categories column so it stays put while the report
+        // cards scroll. top offset clears the sticky h-14 navbar (56px) + gap.
+        'lg:sticky lg:top-[68px] lg:self-start',
         // Mobile: horizontal pill scroller
         'overflow-x-auto lg:overflow-visible scroll-thin',
       )}

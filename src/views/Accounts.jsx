@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
   Loader2, RefreshCw, Search, Layers, AlertCircle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
@@ -12,6 +12,10 @@ import { selectXero } from '../features/xero/xeroSlice.js';
 import { getXeroStartURL } from '../features/xero/xeroAPI.js';
 import { selectZoho } from '../features/zoho/zohoSlice.js';
 import { selectRole } from '../features/auth/authSlice.js';
+import { selectViewAsClientId } from '../features/viewAs/viewAsSlice.js';
+import {
+  fetchClients, selectAllClients, selectClientsStatus,
+} from '../features/clients/clientsSlice.js';
 import { cn } from '../utils/classNames.js';
 import AccountLedgerModal from '../components/reports/AccountLedgerModal.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
@@ -70,27 +74,62 @@ function SummaryTile({ classification, total, count }) {
   );
 }
 
+// Map a client row's connection to the Accounts source key.
+function clientSource(c) {
+  if (!c) return null;
+  if (c.integration_type === 'zoho'       || c.zoho_connected) return 'zoho';
+  if (c.integration_type === 'quickbooks' || c.qbo_connected)  return 'quickbooks';
+  if (c.integration_type === 'xero'       || c.xero_connected) return 'xero';
+  return null;
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function Accounts() {
+  const dispatch  = useDispatch();
   const qbo       = useSelector(selectQBO);
   const xero      = useSelector(selectXero);
   const zoho      = useSelector(selectZoho);
   const role      = useSelector(selectRole);
+  // Admin "view as client": when a client is selected in the header dropdown the
+  // backend already scopes reads via X-Client-Id — here we pick the matching
+  // provider endpoint from THAT client's connection instead of the admin's own.
+  const viewAsId       = useSelector(selectViewAsClientId);
+  const clients        = useSelector(selectAllClients);
+  const clientsStatus  = useSelector(selectClientsStatus);
 
-  // Decide which source to show — Zoho first, then QB, then Xero.
-  const source       = zoho.connected
-    ? 'zoho'
-    : qbo.connected
-      ? 'quickbooks'
-      : xero.connected
-        ? 'xero'
-        : null;
+  // Ensure the client list is available so we can resolve the viewed client's
+  // provider (the header switcher normally loads it; this is a safety net).
+  useEffect(() => {
+    if (viewAsId && clientsStatus === 'idle') dispatch(fetchClients(''));
+  }, [viewAsId, clientsStatus, dispatch]);
+
+  const viewClient = useMemo(
+    () => (viewAsId ? clients.find((c) => String(c.id) === String(viewAsId)) || null : null),
+    [viewAsId, clients]
+  );
+  // While viewing a client whose row hasn't loaded yet, hold off on a fetch
+  // rather than hitting the wrong provider endpoint.
+  const awaitingClient = !!viewAsId && !viewClient;
+
+  // Decide which source to show. Viewing a client → that client's provider.
+  // Otherwise the admin's own connection (Zoho first, then QB, then Xero).
+  const source       = viewAsId
+    ? clientSource(viewClient)
+    : zoho.connected
+      ? 'zoho'
+      : qbo.connected
+        ? 'quickbooks'
+        : xero.connected
+          ? 'xero'
+          : null;
   const sourceLabel  = source === 'zoho' ? 'Zoho Books'
                      : source === 'quickbooks' ? 'QuickBooks'
                      : source === 'xero' ? 'Xero'
                      : 'accounting';
   const isConnected  = !!source;
-  const isClient     = role === 'client';
+  // Hide admin connect/sync/reconnect controls both for real clients and when an
+  // admin is viewing as a client (those would act on the admin's own account).
+  const isClient     = role === 'client' || !!viewAsId;
   const apiPath      = source === 'zoho'  ? '/zoho/accounts'
                      : source === 'xero'  ? '/xero/accounts'
                      : '/quickbooks/accounts';
@@ -109,6 +148,9 @@ export default function Accounts() {
   const [ledger, setLedger]       = useState(null); // { accountRef, accountName, currency }
 
   const load = useCallback(async () => {
+    // Don't fetch until we know the viewed client's provider — avoids hitting
+    // the wrong endpoint on the first render after picking a client.
+    if (awaitingClient) return;
     setStatus('loading'); setError(null);
     try {
       const { data } = await axiosClient.get(apiPath);
@@ -119,7 +161,7 @@ export default function Accounts() {
       setError(e.response?.data?.error || e.message);
       setStatus('failed');
     }
-  }, [apiPath]);
+  }, [apiPath, awaitingClient]);
 
   // Always attempt to load whatever has been synced into the DB.
   // The Redux `isConnected` flag races with verifyQBOStatus() on layout mount —

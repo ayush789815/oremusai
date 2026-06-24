@@ -181,7 +181,7 @@ export default function Clients() {
   const loading   = status === 'loading';
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1000px] mx-auto">
+    <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
 
       {/* ── Page header ── */}
       <div className="flex items-start justify-between gap-4 mb-6">

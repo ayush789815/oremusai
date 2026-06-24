@@ -21,7 +21,6 @@ import ForeignCurrencyGainsViewer from './ForeignCurrencyGainsViewer.jsx';
 import InventoryItemSummaryViewer from './InventoryItemSummaryViewer.jsx';
 import ZohoDetailReportViewer from './ZohoDetailReportViewer.jsx';
 import GstReturnsWorkbookViewer from './GstReturnsWorkbookViewer.jsx';
-import BankReconciliationViewer from './BankReconciliationViewer.jsx';
 import {
   selectOpenReport, selectIsViewerOpen,
   selectReportData, selectReportStatus,
@@ -113,8 +112,6 @@ export default function ReportViewerModal() {
         <InventoryItemSummaryViewer />
       ) : report.name === 'GST Returns Workbook' ? (
         <GstReturnsWorkbookViewer />
-      ) : report.name === 'Bank Reconciliation' ? (
-        <BankReconciliationViewer />
       ) : report.name === 'Credit Notes' || report.name === 'Credit Note Details'
         || report.name === 'Recurring Invoices' || report.name === 'Recurring Invoice Details'
         || report.name === 'Purchases by Item' || report.name === 'Tax Liability'

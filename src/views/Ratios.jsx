@@ -14,6 +14,7 @@ import GaugeChart from '../components/ratios/GaugeChart.jsx';
 import PeriodFilter from '../components/common/PeriodFilter.jsx';
 import DashboardTabs from '../components/common/DashboardTabs.jsx';
 import axiosClient from '../services/axiosClient.js';
+import { toast } from '../utils/toastStore.js';
 import {
   selectPeriodLabel,
   selectDateRange,
@@ -270,8 +271,11 @@ export default function Ratios() {
         params: { from: dateRange.from, to: dateRange.to },
       });
       setRatios(data.data);
-    } catch (e) {
-      setError(e.response?.data?.error ?? e.message);
+    } catch {
+      // Never surface the raw backend error string (e.g. "Server error") in the
+      // UI. Show a friendly inline message and a toast instead.
+      setError("We couldn't load your financial ratios right now. Please try again.");
+      toast.error("Couldn't load financial ratios. Please try again.");
     } finally {
       setLoading(false);
     }

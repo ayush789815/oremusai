@@ -253,7 +253,7 @@ export default function Sidebar() {
         {/* Logo */}
         <div
           className={cn(
-            'h-16 flex items-center border-b border-navy-200/70 dark:border-navy-800',
+            'h-14 flex items-center border-b border-navy-200/70 dark:border-navy-800',
             collapsed ? 'justify-center' : 'px-5'
           )}
         >
