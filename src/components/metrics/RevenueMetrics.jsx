@@ -6,31 +6,20 @@ import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar,
   PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderRevenue } from '../../utils/metricsPlaceholder.js';
 
 const DONUT = ['#2563EB', '#94a3b8'];
 
 export default function RevenueMetrics({ from, to, customer, currency }) {
-  const [m, setM] = useState(null);      // /metrics/revenue (headline + breakdowns)
-  const [trend, setTrend] = useState([]); // 12-mo trend (warehouse, unchanged endpoint)
+  const [m, setM] = useState(null);      // headline + breakdowns (period placeholder)
+  const [trend, setTrend] = useState([]); // monthly trend across the selected period
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    const params = {
-      from, to,
-      ...(customer ? { customer_id: customer } : {}),
-      ...(currency ? { currency_id: currency } : {}),
-    };
-    Promise.all([
-      axiosClient.get('/metrics/revenue', { params }),
-      axiosClient.get('/dashboard/profitability', { params: { from, to } }),
-    ]).then(([mRes, tRes]) => {
-      if (cancelled) return;
-      setM(mRes.data?.data || {});
-      setTrend(tRes.data?.data?.trend || []);
-    }).catch(() => { if (!cancelled) { setM({}); setTrend([]); } });
-    return () => { cancelled = true; };
+    const { m: mm, trend: tt } = placeholderRevenue(from, to);
+    setM(mm);
+    setTrend(tt);
   }, [from, to, customer, currency]);
 
   if (!m) return <SectionSkeleton />;

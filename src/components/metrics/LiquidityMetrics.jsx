@@ -6,8 +6,8 @@ import {
   ResponsiveContainer,
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { fmtINR, fmtFull, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderLiquidity } from '../../utils/metricsPlaceholder.js';
 
 function RatioGauge({ value, label, healthy, warning = 1, color }) {
   const pct = Math.min(100, (value / (healthy * 2)) * 100);
@@ -41,12 +41,9 @@ function RatioGauge({ value, label, healthy, warning = 1, color }) {
 export default function LiquidityMetrics({ from, to }) {
   const [data, setData] = useState(null);
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    axiosClient.get('/dashboard/liquidity', { params: { from, to } })
-      .then(r => { if (!cancelled) setData(r.data.data); })
-      .catch(() => { if (!cancelled) setData({}); });
-    return () => { cancelled = true; };
+    setData(placeholderLiquidity(from, to));
   }, [from, to]);
 
   if (!data) return <SectionSkeleton />;

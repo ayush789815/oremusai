@@ -58,7 +58,7 @@ function RevenueDetail({ from, to }) {
 
       {/* Trend chart */}
       <div>
-        <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Monthly Revenue · Last 12 months</div>
+        <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Monthly Revenue · Selected period</div>
         <div className="h-[160px]">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data.trend || []} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -109,13 +109,13 @@ function RevenueDetail({ from, to }) {
 }
 
 // ── Cash detail ──────────────────────────────────────────────────────────────
-function CashDetail() {
+function CashDetail({ from, to }) {
   const [data, setData] = useState(null);
   useEffect(() => {
-    axiosClient.get('/dashboard/kpi/cash')
+    axiosClient.get('/dashboard/kpi/cash', { params: { from, to } })
       .then(r => setData(r.data.data))
       .catch(() => setData({}));
-  }, []);
+  }, [from, to]);
 
   if (!data) return <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-48" /></div>;
 
@@ -159,7 +159,7 @@ function CashDetail() {
       {/* Trend */}
       {(data.trend || []).length > 0 && (
         <div>
-          <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Cash Flow · Last 12 Months</div>
+          <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Cash Flow · Selected period</div>
           <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -180,13 +180,13 @@ function CashDetail() {
 }
 
 // ── Burn detail ──────────────────────────────────────────────────────────────
-function BurnDetail() {
+function BurnDetail({ from, to }) {
   const [data, setData] = useState(null);
   useEffect(() => {
-    axiosClient.get('/dashboard/kpi/burn')
+    axiosClient.get('/dashboard/kpi/burn', { params: { from, to } })
       .then(r => setData(r.data.data))
       .catch(() => setData({}));
-  }, []);
+  }, [from, to]);
 
   if (!data) return <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-48" /></div>;
 
@@ -208,7 +208,7 @@ function BurnDetail() {
       {/* Monthly burn trend */}
       {(data.trend || []).length > 0 && (
         <div>
-          <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Monthly Burn · Last 12 Months</div>
+          <div className="text-[11px] font-semibold text-navy-500 uppercase tracking-wider mb-2">Monthly Burn · Selected period</div>
           <div className="h-[150px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data.trend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -261,13 +261,13 @@ function BurnDetail() {
 }
 
 // ── Receivables detail ───────────────────────────────────────────────────────
-function ReceivablesDetail() {
+function ReceivablesDetail({ from, to }) {
   const [data, setData] = useState(null);
   useEffect(() => {
-    axiosClient.get('/dashboard/kpi/receivables')
+    axiosClient.get('/dashboard/kpi/receivables', { params: { from, to } })
       .then(r => setData(r.data.data))
       .catch(() => setData({}));
-  }, []);
+  }, [from, to]);
 
   if (!data) return <div className="space-y-3"><Skeleton className="h-32" /><Skeleton className="h-48" /></div>;
 

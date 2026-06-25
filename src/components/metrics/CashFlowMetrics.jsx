@@ -6,30 +6,18 @@ import {
   ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Line, ComposedChart, Cell,
 } from 'recharts';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderCashflow } from '../../utils/metricsPlaceholder.js';
 
 export default function CashFlowMetrics({ from, to, basis, customer, currency }) {
   const [m, setM] = useState(null);        // /metrics/cashflow
   const [trend, setTrend] = useState([]);   // monthly inflow/outflow (unchanged endpoint)
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    const params = {
-      from, to,
-      ...(basis ? { basis } : {}),
-      ...(customer ? { customer_id: customer } : {}),
-      ...(currency ? { currency_id: currency } : {}),
-    };
-    Promise.all([
-      axiosClient.get('/metrics/cashflow', { params }),
-      axiosClient.get('/dashboard/kpi/cash', { params: { from, to } }),
-    ]).then(([mRes, cRes]) => {
-      if (cancelled) return;
-      setM(mRes.data?.data || {});
-      setTrend(cRes.data?.data?.trend || []);
-    }).catch(() => { if (!cancelled) { setM({}); setTrend([]); } });
-    return () => { cancelled = true; };
+    const { m: mm, trend: tt } = placeholderCashflow(from, to);
+    setM(mm);
+    setTrend(tt);
   }, [from, to, basis, customer, currency]);
 
   if (!m) return <SectionSkeleton />;

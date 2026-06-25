@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Clock, RefreshCw, Calendar, BarChart2 } from 'lucide-react';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { fmtFull, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderEfficiency } from '../../utils/metricsPlaceholder.js';
 
 function EfficiencyCard({ label, value, unit, sub, target, industry, color, icon: Icon }) {
   const numVal   = parseFloat(value) || 0;
@@ -53,12 +53,9 @@ function EfficiencyCard({ label, value, unit, sub, target, industry, color, icon
 export default function EfficiencyMetrics({ from, to }) {
   const [data, setData] = useState(null);
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    axiosClient.get('/dashboard/efficiency', { params: { from, to } })
-      .then(r => { if (!cancelled) setData(r.data.data); })
-      .catch(() => { if (!cancelled) setData({}); });
-    return () => { cancelled = true; };
+    setData(placeholderEfficiency(from, to));
   }, [from, to]);
 
   if (!data) return <SectionSkeleton />;

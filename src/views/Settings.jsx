@@ -680,6 +680,7 @@ function ProviderSyncRow({ provider }) {
 }
 
 function ClientSyncCard() {
+  const { user } = useAuth();
   const zoho = useSelector(selectZoho);
   const qbo  = useSelector(selectQBO);
   const xero = useSelector(selectXero);
@@ -690,9 +691,17 @@ function ClientSyncCard() {
     xero.connected && 'xero',
   ].filter(Boolean);
 
+  // Clients inherit the admin's integration and have no own token row, so the
+  // per-provider status check can report "disconnected" even when sync works
+  // (the backend resolves the effective user). Fall back to the client's own
+  // integrationType so the Sync button is always available for their provider.
+  const providers = connected.length > 0
+    ? connected
+    : (['zoho', 'quickbooks', 'xero'].includes(user?.integrationType) ? [user.integrationType] : []);
+
   return (
     <Section icon={Database} title="Data Sync" subtitle="Pull the latest data from your accounting tools">
-      {connected.length === 0 ? (
+      {providers.length === 0 ? (
         <div className="px-6 py-5">
           <p className="text-[13px] font-medium text-navy-800 dark:text-navy-200">No integration linked</p>
           <p className="text-[12px] text-navy-500">
@@ -700,7 +709,7 @@ function ClientSyncCard() {
           </p>
         </div>
       ) : (
-        connected.map((p) => <ProviderSyncRow key={p} provider={p} />)
+        providers.map((p) => <ProviderSyncRow key={p} provider={p} />)
       )}
     </Section>
   );

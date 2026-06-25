@@ -6,8 +6,8 @@ import {
   ResponsiveContainer, BarChart, Bar, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderExpense } from '../../utils/metricsPlaceholder.js';
 
 const PALETTE = ['#2563EB','#06B6D4','#8B5CF6','#10B981','#F59E0B','#EF4444','#64748B'];
 
@@ -16,19 +16,12 @@ export default function ExpenseMetrics({ from, to }) {
   const [burnData,  setBurnData]  = useState(null);
   const [breakdown, setBreakdown] = useState([]);
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      axiosClient.get('/dashboard/profitability',       { params: { from, to } }),
-      axiosClient.get('/dashboard/kpi/burn',            { params: { from, to } }),
-      axiosClient.get('/dashboard/expense-breakdown',   { params: { from, to } }),
-    ]).then(([pRes, bRes, ebRes]) => {
-      if (cancelled) return;
-      setProfData(pRes.data.data);
-      setBurnData(bRes.data.data);
-      setBreakdown(ebRes.data.data || []);
-    }).catch(() => { if (!cancelled) { setProfData({}); setBurnData({}); } });
-    return () => { cancelled = true; };
+    const { profData: pd, burnData: bd, breakdown: bk } = placeholderExpense(from, to);
+    setProfData(pd);
+    setBurnData(bd);
+    setBreakdown(bk);
   }, [from, to]);
 
   if (!profData || !burnData) return <SectionSkeleton />;

@@ -6,8 +6,8 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts';
-import axiosClient from '../../services/axiosClient.js';
 import MetricSection, { MiniKpi, fmtINR, fmtFull, AXIS_STYLE, SectionSkeleton } from './MetricSection.jsx';
+import { placeholderProfitability } from '../../utils/metricsPlaceholder.js';
 
 // Build floating-bar waterfall steps. Each step draws from `a` to `b`:
 // base = min(a,b) (transparent), delta = |b-a| (colored).
@@ -32,23 +32,11 @@ export default function ProfitabilityMetrics({ from, to, basis, customer, curren
   const [m, setM] = useState(null);       // /metrics/profitability
   const [trend, setTrend] = useState([]);  // 12-mo trend (unchanged endpoint)
 
+  // Demo figures driven by the selected period (see metricsPlaceholder.js).
   useEffect(() => {
-    let cancelled = false;
-    const params = {
-      from, to,
-      ...(basis ? { basis } : {}),
-      ...(customer ? { customer_id: customer } : {}),
-      ...(currency ? { currency_id: currency } : {}),
-    };
-    Promise.all([
-      axiosClient.get('/metrics/profitability', { params }),
-      axiosClient.get('/dashboard/profitability', { params: { from, to, ...(basis ? { basis } : {}) } }),
-    ]).then(([mRes, tRes]) => {
-      if (cancelled) return;
-      setM(mRes.data?.data || {});
-      setTrend(tRes.data?.data?.trend || []);
-    }).catch(() => { if (!cancelled) { setM({}); setTrend([]); } });
-    return () => { cancelled = true; };
+    const { m: mm, trend: tt } = placeholderProfitability(from, to);
+    setM(mm);
+    setTrend(tt);
   }, [from, to, basis, customer, currency]);
 
   if (!m) return <SectionSkeleton />;

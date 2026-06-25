@@ -290,6 +290,17 @@ export default function Dashboard() {
       })
     : null;
 
+  // Human-readable selected date range (e.g. "01 Apr 2025 – 31 Mar 2026") shown
+  // in the header so the user always sees exactly which window every card/chart
+  // reflects.
+  const rangeLabel = (() => {
+    if (!dateRange.from || !dateRange.to) return null;
+    const opt = { day: '2-digit', month: 'short', year: 'numeric' };
+    const f = new Date(`${dateRange.from}T00:00:00`).toLocaleDateString('en-IN', opt);
+    const t = new Date(`${dateRange.to}T00:00:00`).toLocaleDateString('en-IN', opt);
+    return `${f} – ${t}`;
+  })();
+
   // Scroll to section when tab clicked
   const scrollTo = (id) => {
     setActiveSection(id);
@@ -321,6 +332,12 @@ export default function Dashboard() {
             <span className="text-[10.5px] font-bold tracking-[0.2em] uppercase text-navy-400">Workspace</span>
             <span className="text-navy-300">·</span>
             <span className="text-[10.5px] text-navy-400">{periodLabel}</span>
+            {rangeLabel && (
+              <>
+                <span className="text-navy-300">·</span>
+                <span className="text-[10.5px] font-medium text-navy-500 dark:text-navy-300 tabular-nums">{rangeLabel}</span>
+              </>
+            )}
             <Badge tone="green" dot>Live</Badge>
           </div>
           <h1 className="text-[26px] font-bold tracking-tight text-navy-900 dark:text-white">
