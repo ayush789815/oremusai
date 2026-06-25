@@ -3,7 +3,7 @@ import axios from 'axios';
 // Oremus AI query service. Lives on its own origin (separate from the /api
 // backend), so it uses a dedicated axios call rather than the shared client.
 // Override the base via NEXT_PUBLIC_AI_API_URL in production if the host changes.
-const AI_BASE = process.env.NEXT_PUBLIC_AI_API_URL || 'https://aiapi.oremuscorp.net';
+const AI_BASE = process.env.NEXT_PUBLIC_AI_API_URL || 'https://oremuscorp.ai';
 
 // POST /query { platform, question } → AI answer.
 export async function askAI({ platform, question }) {
