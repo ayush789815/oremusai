@@ -16,7 +16,7 @@ export const PERIODS = [
 
 const initialState = {
   searchQuery: '',
-  period: 'this_year',
+  period: 'prev_year',
   customRange: { from: null, to: null },
   basis: 'accrual', // 'accrual' | 'cash' — accounting basis for dashboard metrics
   customer: '',     // selected customer id ('' = all customers) — /metrics filter

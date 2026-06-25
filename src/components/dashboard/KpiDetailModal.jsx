@@ -49,9 +49,9 @@ function RevenueDetail({ from, to }) {
           { label: 'Prior Period', value: fmtINR(data.prior), color: '#64748b' },
           { label: 'Growth', value: `${growth >= 0 ? '+' : ''}${growth?.toFixed(1)}%`, color: growth >= 0 ? '#10B981' : '#EF4444' },
         ].map(k => (
-          <div key={k.label} className="rounded-xl bg-navy-50 dark:bg-navy-800 p-3 text-center">
-            <div className="text-[10px] uppercase tracking-widest text-navy-500 mb-1">{k.label}</div>
-            <div className="text-[18px] font-bold" style={{ color: k.color }}>{k.value}</div>
+          <div key={k.label} className="rounded-xl bg-navy-50 dark:bg-navy-800 p-2.5 text-center min-w-0">
+            <div className="text-[9px] uppercase tracking-wider text-navy-500 mb-1 truncate">{k.label}</div>
+            <div className="text-[13px] font-bold tabular-nums leading-tight tracking-tight break-words" style={{ color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -198,9 +198,9 @@ function BurnDetail() {
           { label: 'Cash on Hand', value: fmtINR(data.cashOnHand), color: '#8B5CF6' },
           { label: 'Runway', value: data.runwayMonths != null ? (data.runwayMonths >= 60 ? '60+ mo' : `${data.runwayMonths} mo`) : '—', color: '#F59E0B' },
         ].map(k => (
-          <div key={k.label} className="rounded-xl bg-navy-50 dark:bg-navy-800 p-3 text-center">
-            <div className="text-[10px] uppercase tracking-widest text-navy-500 mb-1">{k.label}</div>
-            <div className="text-[18px] font-bold" style={{ color: k.color }}>{k.value}</div>
+          <div key={k.label} className="rounded-xl bg-navy-50 dark:bg-navy-800 p-2.5 text-center min-w-0">
+            <div className="text-[9px] uppercase tracking-wider text-navy-500 mb-1 truncate">{k.label}</div>
+            <div className="text-[13px] font-bold tabular-nums leading-tight tracking-tight break-words" style={{ color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
@@ -359,13 +359,14 @@ export default function KpiDetailModal({ kpiId, from, to, onClose }) {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — z above the sidebar (z-50) so the whole app, including the
+          left sidebar, dims and blurs behind the drawer. */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 animate-fadein"
+        className="fixed inset-0 bg-navy-950/50 backdrop-blur-sm z-[60] animate-fadein"
         onClick={onClose}
       />
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white dark:bg-navy-950 shadow-2xl z-50 flex flex-col animate-slidein-right">
+      <div className="fixed right-0 top-0 h-full w-full max-w-[420px] bg-white dark:bg-navy-950 shadow-2xl z-[70] flex flex-col animate-slidein-right">
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-navy-100 dark:border-navy-800">
           <div className="w-9 h-9 rounded-xl grid place-items-center" style={{ background: color + '18' }}>

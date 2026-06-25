@@ -12,6 +12,7 @@ import Badge from '../components/ui/Badge.jsx';
 import { login, selectIsAuthed } from '../features/auth/authSlice.js';
 import { toggleTheme } from '../features/ui/uiSlice.js';
 import { cn } from '../utils/classNames.js';
+import { toast } from '../utils/toastStore.js';
 
 const STATS = [
   { v: '2.4M+', l: 'Transactions analyzed' },
@@ -60,6 +61,19 @@ export default function Login() {
   useEffect(() => {
     if (isAuthed) router.replace('/dashboard');
   }, [isAuthed, router]);
+
+  // Show a "session expired" notice when redirected here by the 401 handler,
+  // then strip the flag from the URL so a refresh doesn't repeat it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('expired') === '1') {
+      toast.error('Your session has expired. Please log in again.');
+      params.delete('expired');
+      const qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''));
+    }
+  }, []);
 
   if (isAuthed) return null;
 

@@ -14,10 +14,12 @@ function fmtFull(v) {
 }
 
 export default function HeroChartTile({ data = [] }) {
-  const visibleData = data;
-
-  const totalRev    = visibleData.reduce((s, d) => s + (d.rev || 0), 0);
-  const totalExp    = visibleData.reduce((s, d) => s + (d.exp || 0), 0);
+  const totalRev    = data.reduce((s, d) => s + (d.rev || 0), 0);
+  const totalExp    = data.reduce((s, d) => s + (d.exp || 0), 0);
+  // The period series is zero-filled to span every month, so a period with no
+  // activity (e.g. a fiscal year not yet synced) arrives as all-zero buckets —
+  // show the clean empty state instead of a flat-line chart.
+  const visibleData = (totalRev === 0 && totalExp === 0) ? [] : data;
   const totalProfit = totalRev - totalExp;
   const latest      = visibleData[visibleData.length - 1];
 

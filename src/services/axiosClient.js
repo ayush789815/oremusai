@@ -32,9 +32,34 @@ axiosClient.interceptors.request.use((config) => {
   return config;
 });
 
+// On a 401 from an authenticated request, the session/token is no longer valid
+// (expired or revoked). Clear the stale session and bounce to the login page
+// with a flag so it can show a "session expired" notice. Guards:
+//  - skip auth endpoints (a wrong-password login also returns 401)
+//  - only act when a session actually existed (avoid loops on the login page)
+let sessionExpiredHandled = false;
 axiosClient.interceptors.response.use(
   (r) => r,
-  (err) => Promise.reject(err)
+  (err) => {
+    try {
+      const status = err?.response?.status;
+      const url    = err?.config?.url || '';
+      const isAuthRoute = url.includes('/auth/login')
+        || url.includes('/auth/forgot-password')
+        || url.includes('/auth/reset-password');
+      const hadSession  = typeof localStorage !== 'undefined'
+        && !!localStorage.getItem('oremus_current_v1');
+      if (status === 401 && hadSession && !isAuthRoute && !sessionExpiredHandled
+          && typeof window !== 'undefined') {
+        sessionExpiredHandled = true;
+        try { localStorage.removeItem('oremus_current_v1'); } catch {}
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.assign('/login?expired=1');
+        }
+      }
+    } catch {}
+    return Promise.reject(err);
+  }
 );
 
 export default axiosClient;
